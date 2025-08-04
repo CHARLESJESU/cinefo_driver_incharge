@@ -1,0 +1,48 @@
+import 'package:flutter/material.dart';
+
+Map? baseurlresponsebody;
+Map? baseurlresult;
+TextEditingController loginmobilenumber = TextEditingController();
+TextEditingController loginpassword = TextEditingController();
+Map? loginresponsebody;
+Map? loginresult;
+Map? getdeviceidresponse;
+int? vmid;
+String? productionHouse;
+String? projectId;
+String? managerName;
+Map? passProjectidresponse;
+String? registeredMovie;
+int? callsheetid;
+String? projectid;
+int? productionTypeId;
+List<dynamic> movieProjects = [];
+String? selectedProjectId;
+String? selectedProjectTitle;
+Map? shiftresponse1;
+String? vcid;
+List<Map<String, dynamic>> updatedDubbingConfigs = [];
+List<Map<String, dynamic>> dubbingConfigs = [];
+int mainCharacter = 0;
+int smallCharacter = 0;
+int bitCharacter = 0;
+int group = 0;
+int fight = 0;
+int mainCharacterOtherLanguage = 0;
+int smallCharacterOtherLanguage = 0;
+int bitCharacterOtherLanguage = 0;
+int groupOtherLanguage = 0;
+int fightOtherLanguage = 0;
+int voicetest = 0;
+int leadRole = 0;
+int secondLeadRole = 0;
+int leadRoleOtherLanguage = 0;
+int secondLeadRoleOtherLanguage = 0;
+final processRequest =
+    Uri.parse('https://vgate.vframework.in/vgateapi/processRequest');
+final processSessionRequest =
+    Uri.parse('https://vgate.vframework.in/vgateapi/processSessionRequest');
+
+Map? closecallsheetresponse;
+Map<String, int> dubbingConfigStates = {};
+Map<String, int> finalDoubingMap = {};
