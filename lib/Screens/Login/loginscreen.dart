@@ -74,11 +74,22 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   Future<void> initializeDevice() async {
-    await _initImei();
-    if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
-      await passDeviceId();
-    } else {
-      print('IMEI not available: $_imei');
+    try {
+      await _initImei();
+      if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+        await passDeviceId();
+      } else {
+        print('IMEI not available: $_imei');
+        // Set managerName to null to show error UI
+        setState(() {
+          managerName = null;
+        });
+      }
+    } catch (e) {
+      print('Error in initializeDevice: $e');
+      setState(() {
+        managerName = null;
+      });
     }
   }
 
@@ -149,23 +160,31 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   Future<void> baseurl() async {
-    final response = await http.post(
-      processRequest,
-      headers: <String, String>{
-        'VMETID':
-            'byrZ4bZrKm09R4O7WH6SPd7tvAtGnK1/plycMSP8sD5TKI/VZR0tHBKyO/ogYUIf4Qk6HJXvgyGzg58v0xmlMoRJABt3qUUWGtnJj/EKBsrOaFFGZ6xAbf6k6/ktf2gKsruyfbF2/D7r1CFZgUlmTmubGS1oMZZTSU433swBQbwLnPSreMNi8lIcHJKR2WepQnzNkwPPXxA4/XuZ7CZqqsfO6tmjnH47GoHr7H+FC8GK24zU3AwGIpX+Yg/efeibwapkP6mAya+5BTUGtNtltGOm0q7+2EJAfNcrSTdmoDB8xBerLaNNHhwVHowNIu+8JZl2QM0F/gmVpB55cB8rqg=='
-      },
-      body:
-          jsonEncode(<String, String>{"baseURL": "producermember.cinefo.club"}),
-    );
-    if (response.statusCode == 200) {
-      // print(response.body);
-      setState(() {
-        baseurlresponsebody = json.decode(response.body);
-        baseurlresult = baseurlresponsebody!['result'];
-      });
-    } else {
-      // print('Failed to get base URL');
+    try {
+      final response = await http.post(
+        processRequest,
+        headers: <String, String>{
+          'VMETID':
+              'byrZ4bZrKm09R4O7WH6SPd7tvAtGnK1/plycMSP8sD5TKI/VZR0tHBKyO/ogYUIf4Qk6HJXvgyGzg58v0xmlMoRJABt3qUUWGtnJj/EKBsrOaFFGZ6xAbf6k6/ktf2gKsruyfbF2/D7r1CFZgUlmTmubGS1oMZZTSU433swBQbwLnPSreMNi8lIcHJKR2WepQnzNkwPPXxA4/XuZ7CZqqsfO6tmjnH47GoHr7H+FC8GK24zU3AwGIpX+Yg/efeibwapkP6mAya+5BTUGtNtltGOm0q7+2EJAfNcrSTdmoDB8xBerLaNNHhwVHowNIu+8JZl2QM0F/gmVpB55cB8rqg=='
+        },
+        body: jsonEncode(
+            <String, String>{"baseURL": "producermember.cinefo.club"}),
+      );
+      if (response.statusCode == 200) {
+        final responseBody = json.decode(response.body);
+        if (responseBody != null && responseBody['result'] != null) {
+          setState(() {
+            baseurlresponsebody = responseBody;
+            baseurlresult = responseBody['result'];
+          });
+        } else {
+          print('Invalid base URL response structure');
+        }
+      } else {
+        print('Failed to get base URL: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error in baseurl(): $e');
     }
   }
 
@@ -174,84 +193,112 @@ class _LoginscreenState extends State<Loginscreen> {
       _isLoading = true;
     });
 
-    final response = await http.post(
-      processRequest,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-        'VPID': baseurlresult!['vpid'].toString(),
-        "BASEURL": "producermember.cinefo.club",
-        'VPTEMPLATEID': baseurlresult!['vptemplteID'].toString(),
-        'VMETID':
-            'jcd3r0UZg4FnqnFKCfAZqwj+d5Y7TJhxN6vIvKsoJIT++90iKP3dELmti79Q+W7aVywvVbhfoF5bdW32p33PbRRTT27Jt3pahRrFzUe5s0jQBoeE0jOraLITDQ6RBv0QoscoOGxL7n0gEWtLE15Bl/HSF2kG5pQYft+ZyF4DNsLf7tGXTz+w/30bv6vMTGmwUIDWqbEet/+5AAjgxEMT/G4kiZifX0eEb3gMxycdMchucGbMkhzK+4bvZKmIjX+z6uz7xqb1SMgPnjKmoqCk8w833K9le4LQ3KSYkcVhyX9B0Q3dDc16JDtpEPTz6b8rTwY8puqlzfuceh5mWogYuA=='
-      },
-      body: jsonEncode(<String, dynamic>{
-        "mobileNumber": loginmobilenumber.text,
-        "password": loginpassword.text,
-      }),
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (response.statusCode == 200) {
-      print(response.body);
-      try {
+    try {
+      // Check if baseurlresult is available
+      if (baseurlresult == null) {
         setState(() {
-          loginresponsebody = json.decode(response.body);
+          _isLoading = false;
         });
+        showmessage(context, "Base URL not loaded. Please try again.", "ok");
+        return;
+      }
 
-        if (loginresponsebody != null &&
-            loginresponsebody!['responseData'] != null) {
-          loginresult = loginresponsebody!['responseData'];
+      final response = await http.post(
+        processRequest,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'VPID': baseurlresult?['vpid']?.toString() ?? '',
+          "BASEURL": "producermember.cinefo.club",
+          'VPTEMPLATEID': baseurlresult?['vptemplteID']?.toString() ?? '',
+          'VMETID':
+              'jcd3r0UZg4FnqnFKCfAZqwj+d5Y7TJhxN6vIvKsoJIT++90iKP3dELmti79Q+W7aVywvVbhfoF5bdW32p33PbRRTT27Jt3pahRrFzUe5s0jQBoeE0jOraLITDQ6RBv0QoscoOGxL7n0gEWtLE15Bl/HSF2kG5pQYft+ZyF4DNsLf7tGXTz+w/30bv6vMTGmwUIDWqbEet/+5AAjgxEMT/G4kiZifX0eEb3gMxycdMchucGbMkhzK+4bvZKmIjX+z6uz7xqb1SMgPnjKmoqCk8w833K9le4LQ3KSYkcVhyX9B0Q3dDc16JDtpEPTz6b8rTwY8puqlzfuceh5mWogYuA=='
+        },
+        body: jsonEncode(<String, dynamic>{
+          "mobileNumber": loginmobilenumber.text,
+          "password": loginpassword.text,
+        }),
+      );
 
-          if (productionTypeId == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Routescreen()),
-            );
-          } else {
-            print(productionTypeId);
-            if (vmid == loginresult!['vmid']) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (response.statusCode == 200) {
+        print(response.body);
+        try {
+          final responseBody = json.decode(response.body);
+
+          if (responseBody != null && responseBody['responseData'] != null) {
+            setState(() {
+              loginresponsebody = responseBody;
+              loginresult = responseBody['responseData'];
+            });
+
+            if (productionTypeId == 3) {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const Routescreen()),
+                MaterialPageRoute(builder: (context) => Routescreen()),
               );
             } else {
-              showmessage(
+              print(productionTypeId);
+              final loginVmid = loginresult?['vmid'];
+              if (vmid != null && loginVmid != null && vmid == loginVmid) {
+                Navigator.push(
                   context,
-                  "This device is not registered. Please contact the admin",
-                  "ok");
+                  MaterialPageRoute(builder: (context) => const Routescreen()),
+                );
+              } else {
+                showmessage(
+                    context,
+                    "This device is not registered. Please contact the admin",
+                    "ok");
+              }
             }
+          } else {
+            showmessage(context, "Invalid response from server", "ok");
           }
-        } else {
-          showmessage(context, "Invalid response from server", "ok");
+        } catch (e) {
+          print("Error parsing login response: $e");
+          showmessage(context, "Failed to process login response", "ok");
         }
-      } catch (e) {
-        print("Error parsing login response: $e");
-        showmessage(context, "Failed to process login response", "ok");
+      } else {
+        try {
+          final errorBody = json.decode(response.body);
+          setState(() {
+            loginresponsebody = errorBody;
+          });
+          showmessage(
+              context, errorBody?['errordescription'] ?? "Login failed", "ok");
+        } catch (e) {
+          print("Error parsing error response: $e");
+          showmessage(context, "Login failed", "ok");
+        }
+        print(response.body);
       }
-    } else {
-      try {
-        setState(() {
-          loginresponsebody = json.decode(response.body);
-        });
-        showmessage(context,
-            loginresponsebody!['errordescription'] ?? "Login failed", "ok");
-      } catch (e) {
-        print("Error parsing error response: $e");
-        showmessage(context, "Login failed", "ok");
-      }
-      print(response.body);
+    } catch (e) {
+      print("Error in loginr(): $e");
+      setState(() {
+        _isLoading = false;
+      });
+      showmessage(context, "Network error. Please try again.", "ok");
     }
   }
 
   @override
   void initState() {
     super.initState();
-    baseurl();
-    initializeDevice();
-    passDeviceId();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      // First load base URL
+      await baseurl();
+      // Then initialize device
+      await initializeDevice();
+    } catch (e) {
+      print('Error during app initialization: $e');
+    }
   }
 
   @override
@@ -299,7 +346,7 @@ class _LoginscreenState extends State<Loginscreen> {
                         ),
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/logo.jpg',
+                            'assets/tenkrow.png',
                             fit: BoxFit.cover,
                           ),
                         ),

@@ -27,47 +27,79 @@ class _ReportsState extends State<Reports> {
   }
 
   Future<void> callsheet() async {
-    final response = await http.post(
-      processSessionRequest,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-        'VMETID':
-            'CpgDDfl7OjvtUfpQTq2Ay6pOFg0PjAExT+oKNsVaRW6PmfKxZqN0t1/tLoQjXSTMPIhb1P7rk0FStcwChgtzyZ9eB2gYIew67wiUjlmQquYyrB/isPKkyl8JtOi93+DhAd5xnejC8R45wEhEEt7kCpEIFSqdfg0TqXbProryg+wohtZFfMscEDmgdR6WwcdfyQzpR82+0QK1oPm/CxeYWUATCA1FKW4sqYCtiXANLlIaxAEcjB8SxKoxrixmGqO32n9eTvFHGm80EkZ1x+0o9lL5FeLGiqqdRYD34jEP/NsKAKbU6Q6UfE4VZuxoomWDMLL5Cp2QKj5YuWoY1NVdSg==',
-        'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-      },
-      body: jsonEncode({
-        "projectid": projectId.toString(),
-        "callsheetid": "0",
-        "vmid": vmid.toString()
-      }),
-    );
-    if (response.statusCode == 200) {
-      print(response.body);
-      final Map<String, dynamic> data = jsonDecode(response.body);
+    try {
+      final response = await http.post(
+        processSessionRequest,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'VMETID':
+              'CpgDDfl7OjvtUfpQTq2Ay6pOFg0PjAExT+oKNsVaRW6PmfKxZqN0t1/tLoQjXSTMPIhb1P7rk0FStcwChgtzyZ9eB2gYIew67wiUjlmQquYyrB/isPKkyl8JtOi93+DhAd5xnejC8R45wEhEEt7kCpEIFSqdfg0TqXbProryg+wohtZFfMscEDmgdR6WwcdfyQzpR82+0QK1oPm/CxeYWUATCA1FKW4sqYCtiXANLlIaxAEcjB8SxKoxrixmGqO32n9eTvFHGm80EkZ1x+0o9lL5FeLGiqqdRYD34jEP/NsKAKbU6Q6UfE4VZuxoomWDMLL5Cp2QKj5YuWoY1NVdSg==',
+          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+        },
+        body: jsonEncode({
+          "projectid": projectId.toString(),
+          "callsheetid": "0",
+          "vmid": vmid.toString()
+        }),
+      );
 
-      if (data['status'] == "200" && data['responseData'] != null) {
+      // Check if widget is still mounted before processing response
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        print(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['status'] == "200" && data['responseData'] != null) {
+          // Check mounted before calling setState
+          if (mounted) {
+            setState(() {
+              callSheets =
+                  List<Map<String, dynamic>>.from(data['responseData']);
+              isLoading = false;
+            });
+          }
+        }
+      } else {
+        try {
+          Map error = jsonDecode(response.body);
+          print(error);
+
+          // Check mounted before navigation and setState
+          if (mounted) {
+            if (error['errordescription'] == "Session Expired") {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const Sessionexpired()));
+            }
+            setState(() {
+              isLoading = false;
+            });
+          }
+        } catch (e) {
+          print("Error parsing error response: $e");
+          // Check mounted before final setState
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error in callsheet(): $e");
+      // Check mounted before error setState
+      if (mounted) {
         setState(() {
-          callSheets = List<Map<String, dynamic>>.from(data['responseData']);
           isLoading = false;
         });
       }
-    } else {
-      Map error = jsonDecode(response.body);
-      print(error);
-      if (error['errordescription'] == "Session Expired") {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const Sessionexpired()));
-      }
-      setState(() {
-        isLoading = false;
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -118,8 +150,6 @@ class _ReportsState extends State<Reports> {
     String location,
     dynamic dateValue,
   ) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     String formattedDate = "Invalid Date";
     if (dateValue != null && dateValue.toString().trim().isNotEmpty) {
       try {

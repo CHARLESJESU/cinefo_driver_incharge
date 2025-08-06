@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:production/Screens/Attendance/intime.dart';
 import 'package:production/Screens/Attendance/master.dart';
 import 'package:production/Screens/Attendance/nfcnotifier.dart';
-import 'package:production/Screens/Attendance/offlinemodescreen.dart';
 import 'package:production/Screens/Home/colorcode.dart';
 import 'package:production/Screens/callsheet/closecallsheet.dart';
 import 'package:production/Screens/callsheet/createcallsheet.dart';
@@ -61,6 +60,12 @@ class _CallSheetState extends State<CallSheet> {
     if (_isFetching) return;
     _isFetching = true;
 
+    // Check if widget is still mounted before calling setState
+    if (!mounted) {
+      _isFetching = false;
+      return;
+    }
+
     setState(() {
       screenloading = true;
     });
@@ -83,7 +88,9 @@ class _CallSheetState extends State<CallSheet> {
         print(passProjectidresponse);
 
         if (passProjectidresponse != null &&
-            passProjectidresponse!['responseData'] != null) {
+            passProjectidresponse!['responseData'] != null &&
+            mounted) {
+          // Check mounted before setState
           setState(() {
             callsheetname = passProjectidresponse!['responseData'][0]
                     ['callsheetname'] ??
@@ -104,9 +111,12 @@ class _CallSheetState extends State<CallSheet> {
     } catch (e) {
       print("Error fetching project ID: $e");
     } finally {
-      setState(() {
-        screenloading = false;
-      });
+      // Check mounted before final setState
+      if (mounted) {
+        setState(() {
+          screenloading = false;
+        });
+      }
       _isFetching = false;
     }
   }
@@ -114,17 +124,25 @@ class _CallSheetState extends State<CallSheet> {
   @override
   void initState() {
     super.initState();
+    // Start initial fetch
     passProjectid();
+
+    // Set up periodic timer with mounted check
     _timer = Timer.periodic(Duration(seconds: 2), (Timer t) {
-      if (!_isFetching) {
+      if (mounted && !_isFetching) {
         passProjectid();
+      } else if (!mounted) {
+        // Cancel timer if widget is not mounted
+        t.cancel();
       }
     });
   }
 
   @override
   void dispose() {
+    // Cancel timer and clear reference
     _timer?.cancel();
+    _timer = null;
     super.dispose();
   }
 
@@ -137,7 +155,6 @@ class _CallSheetState extends State<CallSheet> {
         final horizontalPadding = isMobile ? 20.0 : 60.0;
         final fontSizeHeader = isMobile ? 18.0 : 24.0;
         final fontSizeSub = isMobile ? 14.0 : 18.0;
-        final iconSize = isMobile ? 30.0 : 40.0;
 
         return Scaffold(
           backgroundColor: const Color.fromRGBO(247, 244, 244, 1),
@@ -215,189 +232,424 @@ class _CallSheetState extends State<CallSheet> {
                       ),
                     ),
 
-                    // Button row with Icons
+                    // Today's Schedule section above profile card
                     Padding(
                       padding: EdgeInsets.only(
-                          top: isMobile ? 70 : 80,
-                          left: horizontalPadding,
-                          right: horizontalPadding),
-                      child: Container(
-                        width: double.infinity,
-                        height: isMobile ? 100 : 150,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _iconButton(
-                                  title: "In-time",
-                                  icon: Icons.login,
-                                  size: iconSize,
-                                  onTap: () {
-                                    if (productionTypeId == 3 ||
-                                        (productionTypeId == 2 &&
-                                            passProjectidresponse?[
-                                                    'errordescription'] !=
-                                                "No Record found")) {
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChangeNotifierProvider(
-                                                      create: (_) =>
-                                                          NFCNotifier(),
-                                                      child:
-                                                          const IntimeScreen())));
-                                    }
-                                  },
-                                  fontSize: fontSizeSub),
-                              _iconButton(
-                                  title: "Out-time",
-                                  icon: Icons.logout,
-                                  size: iconSize,
-                                  onTap: () {
-                                    if (productionTypeId == 3 ||
-                                        (productionTypeId == 2 &&
-                                            passProjectidresponse?[
-                                                    'errordescription'] !=
-                                                "No Record found")) {
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChangeNotifierProvider(
-                                                      create: (_) =>
-                                                          NFCNotifier(),
-                                                      child: OuttimeScreen())));
-                                    }
-                                  },
-                                  fontSize: fontSizeSub),
-                              if (productionTypeId != 3)
-                                _iconButton(
-                                    title: "Config",
-                                    icon: Icons.settings,
-                                    size: iconSize,
-                                    onTap: () {
-                                      if (passProjectidresponse?[
-                                              'errordescription'] !=
-                                          "No Record found") {
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (_) =>
-                                                    const ConfigurationScreen()));
-                                      }
-                                    },
-                                    fontSize: fontSizeSub),
-                              _iconButton(
-                                  title: "Close\nCallsheet",
-                                  icon: Icons.close,
-                                  size: iconSize,
-                                  onTap: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const CloseCallSheet()));
-                                  },
-                                  fontSize: fontSizeSub),
-                              _iconButton(
-                                  title: "offline\nCallsheet",
-                                  icon: Icons.offline_bolt,
-                                  size: iconSize,
-                                  onTap: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const Offlinemodescreen()));
-                                  },
-                                  fontSize: fontSizeSub),
-                            ],
+                        top: isMobile ? 60 : 70,
+                        left: horizontalPadding,
+                        right: horizontalPadding,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Today's Schedule",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: fontSizeHeader,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
 
-                    // Schedule section
-                    Padding(
-                      padding: EdgeInsets.only(
-                          top: isMobile ? 250 : 310,
+                    // Main callsheet container with all information
+                    if (callsheetname != null)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: isMobile ? 120 : 130,
                           left: horizontalPadding,
                           right: horizontalPadding,
-                          bottom: 30),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.all(20),
+                          decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 20, horizontal: 20),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: Offset(0, 5),
+                              ),
+                            ],
+                          ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Today's Schedule",
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: fontSizeHeader)),
-                              const SizedBox(height: 8),
-                              Text(registeredMovie ?? "",
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w400,
-                                      fontSize: fontSizeSub)),
-                              const SizedBox(height: 30),
-                              callsheetname == null
-                                  ? Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(15.0),
-                                        child: Text("No callsheet created",
-                                            style: TextStyle(
-                                                fontSize: fontSizeSub)),
-                                      ),
-                                    )
-                                  : Container(
-                                      width: double.infinity,
+                              // Movie name at the top center
+                              Text(
+                                registeredMovie ?? "No Movie",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2B5682),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 20),
+
+                              // First row: Date and Time
+                              Row(
+                                children: [
+                                  // Left side - Date
+                                  Expanded(
+                                    child: Container(
+                                      height: 70,
+                                      padding: EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                          color: Colors.grey[50],
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 10, horizontal: 12),
-                                        child: Column(
-                                          children: [
-                                            const SizedBox(height: 10),
-                                            const Divider(),
-                                            _infoRow("Callsheet name",
-                                                callsheetname!, fontSizeSub),
-                                            const SizedBox(height: 10),
-                                            _infoRow("Shift", shift ?? "",
-                                                fontSizeSub),
-                                            const Divider(),
-                                            Align(
-                                              alignment: Alignment.centerRight,
-                                              child: Text(date ?? "",
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 1,
-                                                  style: const TextStyle(
-                                                      color: AppColors
-                                                          .primaryLight)),
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "Date",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[600],
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Text(
+                                            date ?? "No Date",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF2B5682),
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                  ),
+
+                                  SizedBox(width: 12),
+
+                                  // Right side - Time
+                                  Expanded(
+                                    child: Container(
+                                      height: 70,
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "Time",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Flexible(
+                                            child: Text(
+                                              shift ?? "No Shift",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF2B5682),
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              softWrap: true,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              SizedBox(height: 15),
+
+                              // Second row: ID and Location
+                              Row(
+                                children: [
+                                  // Left side - ID
+                                  Expanded(
+                                    child: Container(
+                                      height: 70,
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "ID",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Text(
+                                            callsheetname ?? "Unknown",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF2B5682),
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                  SizedBox(width: 12),
+
+                                  // Right side - Location
+                                  Expanded(
+                                    child: Container(
+                                      height: 70,
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "Location",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Text(
+                                            "Chennai",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF2B5682),
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              SizedBox(height: 25),
+
+                              // Action buttons row
+                              Container(
+                                padding: EdgeInsets.symmetric(vertical: 15),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (productionTypeId == 3 ||
+                                            (productionTypeId == 2 &&
+                                                passProjectidresponse?[
+                                                        'errordescription'] !=
+                                                    "No Record found")) {
+                                          Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ChangeNotifierProvider(
+                                                          create: (_) =>
+                                                              NFCNotifier(),
+                                                          child:
+                                                              const IntimeScreen())));
+                                        }
+                                      },
+                                      child: _actionButton(
+                                        "In-time",
+                                        Icons.login,
+                                        AppColors.primaryLight,
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (productionTypeId == 3 ||
+                                            (productionTypeId == 2 &&
+                                                passProjectidresponse?[
+                                                        'errordescription'] !=
+                                                    "No Record found")) {
+                                          Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ChangeNotifierProvider(
+                                                          create: (_) =>
+                                                              NFCNotifier(),
+                                                          child:
+                                                              OuttimeScreen())));
+                                        }
+                                      },
+                                      child: _actionButton(
+                                        "Out-time",
+                                        Icons.logout,
+                                        AppColors.primaryLight,
+                                      ),
+                                    ),
+                                    if (productionTypeId != 3)
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (passProjectidresponse?[
+                                                  'errordescription'] !=
+                                              "No Record found") {
+                                            Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const ConfigurationScreen()));
+                                          }
+                                        },
+                                        child: _actionButton(
+                                          "Config",
+                                          Icons.settings,
+                                          AppColors.primaryLight,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(height: 20),
+
+                              // Close callsheet button
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const CloseCallSheet(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.symmetric(vertical: 15),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.red.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.close,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Close Callsheet",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
-                    ),
+
+                    // No callsheet message when there's no active callsheet
+                    if (callsheetname == null)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: isMobile ? 180 : 200,
+                          left: horizontalPadding,
+                          right: horizontalPadding,
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: EdgeInsets.all(40),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.assignment_outlined,
+                                  size: 60,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  "No Callsheet Found",
+                                  style: TextStyle(
+                                    fontSize: fontSizeHeader,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  "Create a new callsheet to get started",
+                                  style: TextStyle(
+                                    fontSize: fontSizeSub,
+                                    color: Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -408,46 +660,31 @@ class _CallSheetState extends State<CallSheet> {
     );
   }
 
-  Widget _iconButton({
-    required String title,
-    required IconData icon,
-    required double size,
-    required VoidCallback onTap,
-    required double fontSize,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Icon(icon, size: size, color: AppColors.primaryLight),
-          const SizedBox(height: 5),
-          Text(title,
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontWeight: FontWeight.w600, fontSize: fontSize)),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, double fontSize) {
-    return Row(
+  Widget _actionButton(String title, IconData icon, Color color) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: fontSize),
-            overflow: TextOverflow.ellipsis,
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 30,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: fontSize),
-            overflow: TextOverflow.ellipsis,
+        SizedBox(height: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );

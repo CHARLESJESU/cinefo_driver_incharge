@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Home/homescreen_service.dart';
 import 'package:production/Screens/Route/RouteScreen.dart';
@@ -225,8 +224,34 @@ class _MovieListScreenState extends State<MovieListScreen> {
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             automaticallyImplyLeading: false,
-            title: Text(productionTypeId == 3 ? 'Movies' : ''),
+            title: Text(
+              productionTypeId == 3 ? 'Movies' : '',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.notifications),
+                color: Colors.white,
+                iconSize: 24,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No new notifications')),
+                  );
+                },
+              ),
+              // IconButton(
+              //   icon: Icon(Icons.menu),
+              //   color: Colors.white,
+              //   iconSize: 24,
+              //   onPressed: () {
+              //     Scaffold.of(context).openDrawer();
+              //   },
+              // ),
+            ],
           ),
           body: SafeArea(
             child: SingleChildScrollView(

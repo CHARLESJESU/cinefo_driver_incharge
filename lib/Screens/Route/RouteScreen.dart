@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
 import 'package:production/Screens/Home/colorcode.dart';
@@ -34,7 +33,7 @@ class _RoutescreenState extends State<Routescreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFF355E8C),
       body: Stack(
         children: [
           SafeArea(
@@ -46,32 +45,32 @@ class _RoutescreenState extends State<Routescreen> {
               top: false,
               child: SizedBox(
                 height: 70,
-                child: BottomNavigationBar(
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.home),
-                      label: 'Home',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.add_circle_outline),
-                      label: 'Callsheet',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.calendar_month),
-                      label: 'Reports',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.article),
-                      label: 'Profile',
+                child: Stack(
+                  children: [
+                    BottomNavigationBar(
+                      backgroundColor: Color(0xFF355E8C),
+                      items: const [
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.home),
+                          label: 'Home',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.add_circle_outline),
+                          label: 'Callsheet',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.calendar_month),
+                          label: 'Reports',
+                        ),
+                      ],
+                      currentIndex: _currentIndex,
+                      onTap: _onItemTapped,
+                      selectedItemColor: Colors.white,
+                      unselectedItemColor: Colors.white,
+                      showUnselectedLabels: true,
+                      type: BottomNavigationBarType.fixed,
                     ),
                   ],
-                  currentIndex: _currentIndex,
-                  onTap: _onItemTapped,
-                  selectedItemColor: AppColors
-                      .primaryLight, // Use primary color for selected item
-                  unselectedItemColor: Colors.grey,
-                  showUnselectedLabels: true,
-                  type: BottomNavigationBarType.fixed,
                 ),
               ),
             ),
@@ -101,8 +100,6 @@ class _RoutescreenState extends State<Routescreen> {
           projectId: projectid.toString(),
           callsheetid: callsheetid.toString(),
         );
-      case 3:
-        return const Profilesccreen();
       default:
         return const MovieListScreen();
     }

@@ -39,9 +39,11 @@ class _IntimeScreenState extends State<IntimeScreen> {
   }
 
   void updateDebugMessage(String msg) {
-    setState(() {
-      debugMessage = msg;
-    });
+    if (mounted) {
+      setState(() {
+        debugMessage = msg;
+      });
+    }
   }
 
   @override
@@ -68,10 +70,13 @@ class _IntimeScreenState extends State<IntimeScreen> {
               Switch(
                 value: isOffline,
                 onChanged: (value) {
-                  setState(() {
-                    isOffline = value;
-                    debugMessage = value ? "Offline Mode ON" : "Online Mode ON";
-                  });
+                  if (mounted) {
+                    setState(() {
+                      isOffline = value;
+                      debugMessage =
+                          value ? "Offline Mode ON" : "Online Mode ON";
+                    });
+                  }
                 },
               ),
               const Text("Offline", style: TextStyle(color: Colors.black)),

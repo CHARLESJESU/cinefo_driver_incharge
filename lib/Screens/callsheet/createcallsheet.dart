@@ -55,11 +55,28 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   }
 
   Future<void> initializeDevice() async {
-    await _initImei();
-    if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
-      await passDeviceId();
-    } else {
-      print('IMEI not available: $_imei');
+    try {
+      await _initImei();
+      if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+        await passDeviceId();
+      } else {
+        print('IMEI not available: $_imei');
+        // Set fallback values if IMEI is not available
+        if (mounted) {
+          setState(() {
+            managerName = "IMEI not available";
+            registeredMovie = "N/A";
+          });
+        }
+      }
+    } catch (e) {
+      print('Error in initializeDevice: $e');
+      if (mounted) {
+        setState(() {
+          managerName = "Error initializing device";
+          registeredMovie = "N/A";
+        });
+      }
     }
   }
 
@@ -228,84 +245,134 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   }
 
   Future<void> passDeviceId() async {
-    final response = await http.post(
-      processSessionRequest,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-        'VMETID':
-            'lb+u8AHQGWL1qQsbAPInJlw74qN/CO11M+zHF2J5xA8ATonyNjJbolrErxHS5J62zttxxaH19jWydCT+ynunHecYrHdCg2VNdx7y9W3uC91rR4vOUGnnbOZqqXVnkXsVsnjFP6FidZjmxYmYsHiiX3iMckkd1eMHoew/SZYZJNriRZ9aIl7RwOhFExH6cBufpjKE4UIiCR0Wtj09SEMwGyh1RgE0sI9VzsmM6Cyto56RjkkeLOcD6Lv5SLXmPDul6jgIiwVjelkiHOCmTnI8L4/+esXkkAmdvTgA/4WgkQPAQwse/YhTOOsePwaxlzYC3Ut0ipJ9qt2eqGWUdeWoQw==',
-        'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-      },
-      body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
-    );
+    try {
+      final response = await http.post(
+        processSessionRequest,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'VMETID':
+              'lb+u8AHQGWL1qQsbAPInJlw74qN/CO11M+zHF2J5xA8ATonyNjJbolrErxHS5J62zttxxaH19jWydCT+ynunHecYrHdCg2VNdx7y9W3uC91rR4vOUGnnbOZqqXVnkXsVsnjFP6FidZjmxYmYsHiiX3iMckkd1eMHoew/SZYZJNriRZ9aIl7RwOhFExH6cBufpjKE4UIiCR0Wtj09SEMwGyh1RgE0sI9VzsmM6Cyto56RjkkeLOcD6Lv5SLXmPDul6jgIiwVjelkiHOCmTnI8L4/+esXkkAmdvTgA/4WgkQPAQwse/YhTOOsePwaxlzYC3Ut0ipJ9qt2eqGWUdeWoQw==',
+          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+        },
+        body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
+      );
 
-    if (response.statusCode == 200) {
-      print(response.body);
-      getdeviceidresponse = json.decode(response.body);
-      if (getdeviceidresponse != null &&
-          getdeviceidresponse!['responseData'] != null) {
+      if (response.statusCode == 200) {
+        print(response.body);
+        final responseBody = json.decode(response.body);
+
+        // Validate response structure and data availability
+        if (responseBody != null &&
+            responseBody['responseData'] != null &&
+            responseBody['responseData'] is List &&
+            (responseBody['responseData'] as List).isNotEmpty) {
+          // Check if widget is still mounted before setState
+          if (!mounted) return;
+
+          setState(() {
+            getdeviceidresponse = responseBody;
+            final responseData = responseBody['responseData'][0];
+
+            managerName = responseData['managerName'] ?? "Unknown";
+            registeredMovie = responseData['projectName'] ?? "N/A";
+            vmid = responseData['vmId'] ?? "N/A";
+            productionHouse = responseData['productionHouse'] ?? "N/A";
+            projectId = responseData['projectId'] ?? "N/A";
+          });
+
+          print("Device ID sent successfully!");
+        } else {
+          print("Warning: responseData is null, not a list, or empty");
+          if (mounted) {
+            setState(() {
+              managerName = "Device not configured";
+              registeredMovie = "N/A";
+            });
+          }
+        }
+      } else {
+        final errorBody = json.decode(response.body);
+        print("Failed to send Device ID: ${response.body}");
+
+        if (mounted) {
+          setState(() {
+            getdeviceidresponse = errorBody;
+            managerName = "Error loading data";
+            registeredMovie = "N/A";
+          });
+        }
+      }
+    } catch (e) {
+      print("Error in passDeviceId: $e");
+      if (mounted) {
         setState(() {
-          managerName = getdeviceidresponse!['responseData'][0]
-                  ['managerName'] ??
-              "Unknown";
-          registeredMovie =
-              getdeviceidresponse!['responseData'][0]['projectName'] ?? "N/A";
-          vmid = getdeviceidresponse!['responseData'][0]['vmId'] ?? "N/A";
-          productionHouse = getdeviceidresponse!['responseData'][0]
-                  ['productionHouse'] ??
-              "N/A";
-          projectId =
-              getdeviceidresponse!['responseData'][0]['projectId'] ?? "N/A";
+          managerName = "Error loading data";
+          registeredMovie = "N/A";
         });
       }
-      print("Device ID sent successfully!");
-
-      print(response.body);
-    } else {
-      getdeviceidresponse = json.decode(response.body);
-      print("Failed to send Device ID: ${response.body}");
     }
   }
 
   Future<void> shift() async {
+    if (!mounted) return;
+
     setState(() {
       screenLoading = true;
     });
 
-    final response = await http.post(
-      processSessionRequest,
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'VMETID':
-            'hS1nHKbqxtay7ZfN0tzo5IxtJZLsZXbcVJS90oRm9KRUElvpSu/G/ik57TYlj4PTIfKxYI6P80/LHBjJjUO2XJv2k73r1mhjdd0z1w6z3okJ6uE5+XL1BJiaLjaS+aI7bx7tb9i0Ul8nfe7T059A5AZ6dx5gfML/njWo3K2ltOqcA8sCq7gjijxsKi4JY0LhkGMlHe9D4b+It08K8oHFCpV66R+acr8+iqbiPbWeOn/PphpwA7rDzNkBX5NEvudefosrJ0bfaJpHtMZnh7fYcw1eAAveV7fYc9zxX/W72ILQXlSCFxeeiONi9LfoJsfvkWRS7HtOrtD1x1Q08VeG/w==',
-        'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-      },
-      body: jsonEncode({"productionType": productionTypeId}),
-    );
+    try {
+      final response = await http.post(
+        processSessionRequest,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'VMETID':
+              'hS1nHKbqxtay7ZfN0tzo5IxtJZLsZXbcVJS90oRm9KRUElvpSu/G/ik57TYlj4PTIfKxYI6P80/LHBjJjUO2XJv2k73r1mhjdd0z1w6z3okJ6uE5+XL1BJiaLjaS+aI7bx7tb9i0Ul8nfe7T059A5AZ6dx5gfML/njWo3K2ltOqcA8sCq7gjijxsKi4JY0LhkGMlHe9D4b+It08K8oHFCpV66R+acr8+iqbiPbWeOn/PphpwA7rDzNkBX5NEvudefosrJ0bfaJpHtMZnh7fYcw1eAAveV7fYc9zxX/W72ILQXlSCFxeeiONi9LfoJsfvkWRS7HtOrtD1x1Q08VeG/w==',
+          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+        },
+        body: jsonEncode({"productionType": productionTypeId}),
+      );
 
-    setState(() {
-      screenLoading = false;
-    });
-
-    if (response.statusCode == 200) {
-      List<dynamic> responseData = jsonDecode(response.body)['responseData'];
-
-      shiftList = responseData
-          .map((shift) => {
-                "shiftId": shift['shiftId'],
-                "shift": shift['shift'].toString(),
-              })
-          .toList();
-
-      shiftTimes = shiftList.map((shift) => shift['shift'].toString()).toList();
+      // Check if widget is still mounted before processing response
+      if (!mounted) return;
 
       setState(() {
-        selectedShift =
-            null; // ✅ Important: keep it null so dropdown shows hint
-        selectedShiftId = null; // Optionally reset this too
+        screenLoading = false;
       });
-    } else {
-      // Handle error if needed
+
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+
+        if (responseBody != null && responseBody['responseData'] != null) {
+          List<dynamic> responseData = responseBody['responseData'];
+
+          shiftList = responseData
+              .map((shift) => {
+                    "shiftId": shift['shiftId'],
+                    "shift": shift['shift'].toString(),
+                  })
+              .toList();
+
+          shiftTimes =
+              shiftList.map((shift) => shift['shift'].toString()).toList();
+
+          if (mounted) {
+            setState(() {
+              selectedShift =
+                  null; // ✅ Important: keep it null so dropdown shows hint
+              selectedShiftId = null; // Optionally reset this too
+            });
+          }
+        }
+      } else {
+        print("Failed to load shifts: ${response.body}");
+      }
+    } catch (e) {
+      print("Error in shift(): $e");
+      if (mounted) {
+        setState(() {
+          screenLoading = false;
+        });
+      }
     }
   }
 
@@ -649,9 +716,6 @@ class _OpenStreetMapScreenState extends State<OpenStreetMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenPadding = MediaQuery.of(context).padding;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Select Location"),

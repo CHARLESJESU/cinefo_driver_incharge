@@ -102,11 +102,7 @@ class _ChangepasswordState extends State<Changepassword> {
                     padding: const EdgeInsets.all(2.0),
                     child: GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      Routescreen())); // Pop screen
+                          Navigator.pop(context); // Pop screen
                         },
                         child: Icon(Icons.arrow_back_ios)),
                   ),

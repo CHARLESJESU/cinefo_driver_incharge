@@ -52,6 +52,7 @@ dependencies:
   get:
   flutter_screenutil: ^5.9.3
   responsive_builder: ^0.7.1
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
