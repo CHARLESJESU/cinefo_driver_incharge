@@ -48,6 +48,8 @@ dependencies:
   flutter_device_imei:
   shared_preferences: ^2.2.2
   connectivity_plus: ^4.0.1
+  sqflite: ^2.4.2
+  path: ^1.8.3
   workmanager: ^0.7.0
   get:
   flutter_screenutil: ^5.9.3

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Attendance/DubbingConfigProvider.dart';
-import 'package:production/Screens/Login/loginscreen.dart';
+import 'package:production/Screens/splash/splashscreen.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Loginscreen(),
+      home: SplashScreen(),
     );
   }
 }

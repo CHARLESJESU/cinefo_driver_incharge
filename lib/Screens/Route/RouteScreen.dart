@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
 import 'package:production/Screens/Home/colorcode.dart';
+import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
 import 'package:production/variables.dart';
@@ -62,6 +63,10 @@ class _RoutescreenState extends State<Routescreen> {
                           icon: Icon(Icons.calendar_month),
                           label: 'Reports',
                         ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.calendar_month),
+                          label: 'Tesing',
+                        ),
                       ],
                       currentIndex: _currentIndex,
                       onTap: _onItemTapped,
@@ -100,6 +105,8 @@ class _RoutescreenState extends State<Routescreen> {
           projectId: projectid.toString(),
           callsheetid: callsheetid.toString(),
         );
+      case 3:
+        return Sqlitelist();
       default:
         return const MovieListScreen();
     }

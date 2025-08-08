@@ -8,6 +8,8 @@ import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
 import 'package:flutter_device_imei/flutter_device_imei.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 
 class Loginscreen extends StatefulWidget {
   const Loginscreen({super.key});
@@ -17,34 +19,207 @@ class Loginscreen extends StatefulWidget {
 }
 
 class _LoginscreenState extends State<Loginscreen> {
-  Future<bool> isNfcSupported() async {
-    return await NfcManager.instance.isAvailable();
+  // Database helper instance
+  Database? _database;
+
+  // Initialize database
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    print('🔄 Initializing SQLite database...');
+    _database = await _initDatabase();
+    print('✅ Database initialization completed');
+    return _database!;
   }
 
-  void _checkNFCAndLogin(BuildContext context) async {
-    bool isAvailable = await NfcManager.instance.isAvailable();
+  // Create database and login table
+  Future<Database> _initDatabase() async {
+    try {
+      String dbPath =
+          path.join(await getDatabasesPath(), 'production_login.db');
+      print('📍 Database path: $dbPath');
 
-    if (!isAvailable) {
-      // NFC is disabled, show dialog and open settings
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text('NFC Disabled'),
-          content: Text('Please enable NFC to continue.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // AppSettings.openNFCSettings();
-              },
-              child: Text('Open Settings'),
-            ),
-          ],
-        ),
+      final db = await openDatabase(
+        dbPath,
+        version: 1,
+        onCreate: (Database db, int version) async {
+          print('🔨 Creating login_data table...');
+          await db.execute('''
+            CREATE TABLE login_data (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              manager_name TEXT,
+              registered_movie TEXT,
+              mobile_number TEXT,
+              password TEXT,
+              project_id TEXT,
+              production_type_id INTEGER,
+              production_house TEXT,
+              vmid INTEGER,
+              login_date TEXT,
+         
+            )
+          ''');
+          print('✅ SQLite login_data table created successfully');
+        },
       );
-    } else {
-      loginr();
+
+      // Test database connectivity
+      final tables = await db
+          .rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      print('📋 Available tables: $tables');
+
+      return db;
+    } catch (e) {
+      print('❌ Database initialization error: $e');
+      rethrow;
     }
+  }
+
+  // Save login data to SQLite (ONLY if table is empty - first user only)
+  Future<void> saveLoginData() async {
+    try {
+      final db = await database;
+
+      // Check if table already contains any data
+      final existingData = await db.query('login_data');
+
+      if (existingData.isNotEmpty) {
+        print(
+            '🚫 Login table already contains data. Skipping insert (First user only policy)');
+        print('📊 Existing records count: ${existingData.length}');
+        print(
+            '👤 First user: ${existingData.first['manager_name']} (${existingData.first['mobile_number']})');
+        return; // Exit without adding new data
+      }
+
+      // Table is empty, proceed with first user registration
+      print('✅ Login table is empty. Adding first user data...');
+
+      // Prepare login data for first user
+      final loginData = {
+        'manager_name': managerName ?? '',
+        'registered_movie': registeredMovie ?? '',
+        'mobile_number': loginmobilenumber.text,
+        'password': loginpassword.text,
+        'project_id': projectId ?? '',
+        'production_type_id': productionTypeId ?? 0,
+        'production_house': productionHouse ?? '',
+        'vmid': vmid ?? 0,
+        'login_date': DateTime.now().toIso8601String(),
+      };
+
+      print('📝 Adding FIRST USER login data: $loginData');
+
+      // Insert first user login data
+      final insertResult = await db.insert(
+        'login_data',
+        loginData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      print(
+          '🎉 FIRST USER login data saved to SQLite successfully with ID: $insertResult');
+
+      // Verify the data was stored correctly
+      final savedData = await getActiveLoginData();
+      print('🔍 Verification - Retrieved first user data: $savedData');
+    } catch (e) {
+      print('❌ Error saving login data: $e');
+    }
+  }
+
+  // Get active login data from SQLite (first user only)
+  Future<Map<String, dynamic>?> getActiveLoginData() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'login_data',
+        orderBy: 'id ASC', // Get the first user (lowest ID)
+        limit: 1,
+      );
+
+      if (maps.isNotEmpty) {
+        return maps.first;
+      }
+      return null;
+    } catch (e) {
+      print('Error getting login data: $e');
+      return null;
+    }
+  }
+
+  // Get first user data (helper function)
+  Future<Map<String, dynamic>?> getFirstUserData() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'login_data',
+        orderBy: 'id ASC', // Always get the first user
+        limit: 1,
+      );
+
+      if (maps.isNotEmpty) {
+        print(
+            '👤 First user found: ${maps.first['manager_name']} (${maps.first['mobile_number']})');
+        return maps.first;
+      }
+      print('🔍 No users found in database');
+      return null;
+    } catch (e) {
+      print('Error getting first user data: $e');
+      return null;
+    }
+  }
+
+  // Test SQLite functionality
+  Future<void> testSQLite() async {
+    try {
+      print('🧪 Running SQLite test...');
+      final db = await database;
+
+      // Test basic query
+      final result = await db.rawQuery('SELECT sqlite_version()');
+      print('📊 SQLite Version: $result');
+
+      // Test table existence
+      final tables = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='login_data'");
+      print('🔍 Login table exists: ${tables.isNotEmpty}');
+
+      if (tables.isNotEmpty) {
+        // Test table structure
+        final columns = await db.rawQuery('PRAGMA table_info(login_data)');
+        print('📋 Table structure: $columns');
+      }
+
+      print('✅ SQLite test completed successfully');
+    } catch (e) {
+      print('❌ SQLite test failed: $e');
+    }
+  }
+
+  // Clear first user login data (removes the registered first user)
+  Future<void> clearLoginData() async {
+    try {
+      final db = await database;
+
+      // Get first user info before deleting
+      final firstUser = await getFirstUserData();
+      if (firstUser != null) {
+        print(
+            '🗑️ Clearing first user: ${firstUser['manager_name']} (${firstUser['mobile_number']})');
+      }
+
+      // Delete all records (reset for new first user)
+      await db.delete('login_data');
+      print(
+          '✅ First user login data cleared successfully - Ready for new first user registration');
+    } catch (e) {
+      print('❌ Error clearing login data: $e');
+    }
+  }
+
+  Future<bool> isNfcSupported() async {
+    return await NfcManager.instance.isAvailable();
   }
 
   bool _isLoading = false;
@@ -235,6 +410,9 @@ class _LoginscreenState extends State<Loginscreen> {
             });
 
             if (productionTypeId == 3) {
+              // Save login data to SQLite after successful login
+              await saveLoginData();
+
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => Routescreen()),
@@ -243,6 +421,9 @@ class _LoginscreenState extends State<Loginscreen> {
               print(productionTypeId);
               final loginVmid = loginresult?['vmid'];
               if (vmid != null && loginVmid != null && vmid == loginVmid) {
+                // Save login data to SQLite after successful login
+                await saveLoginData();
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const Routescreen()),
@@ -285,6 +466,13 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   @override
+  void dispose() {
+    // Close database connection
+    _database?.close();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _initializeApp();
@@ -292,12 +480,22 @@ class _LoginscreenState extends State<Loginscreen> {
 
   Future<void> _initializeApp() async {
     try {
+      print('🚀 Starting app initialization...');
+
+      // Test SQLite functionality
+      await testSQLite();
+
       // First load base URL
+      print('🌐 Loading base URL...');
       await baseurl();
+      print('✅ Base URL loaded');
+
       // Then initialize device
+      print('📱 Initializing device...');
       await initializeDevice();
+      print('✅ Device initialization completed');
     } catch (e) {
-      print('Error during app initialization: $e');
+      print('❌ Error during app initialization: $e');
     }
   }
 
