@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:production/Screens/Home/colorcode.dart';
+import 'package:path/path.dart' as path;
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart';
 
 class Profilesccreen extends StatefulWidget {
   const Profilesccreen({super.key});
@@ -12,6 +15,7 @@ class Profilesccreen extends StatefulWidget {
 
 class _ProfileInfoScreenState extends State<Profilesccreen> {
   File? _profileImage;
+  Map<String, dynamic>? loginData;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -23,6 +27,18 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
     }
   }
 
+  Future<void> _fetchLoginData() async {
+    final dbPath = await getDatabasesPath();
+    final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+    final List<Map<String, dynamic>> loginMaps = await db.query('login_data');
+    if (loginMaps.isNotEmpty) {
+      setState(() {
+        loginData = loginMaps.first;
+      });
+    }
+    await db.close();
+  }
+
   Widget buildProfileField(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
@@ -31,6 +47,7 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
           SizedBox(
               width: 100,
               child: Text(label, style: TextStyle(color: Colors.white70))),
+          SizedBox(width: 16), // Add horizontal space between label and value
           Expanded(
             child: Text(
               value,
@@ -41,6 +58,12 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLoginData();
   }
 
   @override
@@ -57,61 +80,65 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
         title:
             const Text('Profile Info', style: TextStyle(color: Colors.white)),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              CircleAvatar(
-                radius: 55,
-                backgroundColor: Colors.white,
-                backgroundImage: _profileImage != null
-                    ? FileImage(_profileImage!)
-                    : const AssetImage('assets/cni.png') as ImageProvider,
-              ),
-              Positioned(
-                child: GestureDetector(
-                  onTap: _pickImage,
-                  child: const CircleAvatar(
-                    radius: 15,
-                    backgroundColor: Colors.blue,
-                    child: Icon(Icons.edit, size: 15, color: Colors.white),
-                  ),
+      body: loginData == null
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                const SizedBox(height: 10),
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 55,
+                      backgroundColor: Colors.white,
+                      backgroundImage: _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : const AssetImage('assets/cni.png') as ImageProvider,
+                    ),
+                    Positioned(
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: const CircleAvatar(
+                          radius: 15,
+                          backgroundColor: Colors.blue,
+                          child:
+                              Icon(Icons.edit, size: 15, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('ASIF',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white70,
-              side: const BorderSide(color: Colors.white24),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5)),
+                const SizedBox(height: 8),
+                Text(
+                  loginData?["manager_name"] ?? '',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 10),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5)),
+                  ),
+                  child: const Text('View ID Card'),
+                ),
+                const Divider(color: Colors.white24, height: 30, thickness: 1),
+                buildProfileField('Name', loginData?["manager_name"] ?? ''),
+                buildProfileField('Mobile', loginData?["mobile_number"] ?? ''),
+                buildProfileField('Designation', 'Production Manager'),
+                buildProfileField(
+                    'Production House', loginData?["production_house"] ?? ''),
+              ],
             ),
-            child: const Text('View ID Card'),
-          ),
-          const Divider(color: Colors.white24, height: 30, thickness: 1),
-          buildProfileField('Name', 'ASIF'),
-          buildProfileField('Mobile', '9840884346'),
-          buildProfileField('Email', 'asifsio@gmail.com'),
-          buildProfileField('Status', 'Active'),
-          buildProfileField('Designation', 'Manager'),
-          buildProfileField('Profession', 'GLASS FABRICATOR'),
-          buildProfileField('Chapter', 'N/A'),
-        ],
-      ),
     );
   }
 }

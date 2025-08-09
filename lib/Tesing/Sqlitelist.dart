@@ -11,7 +11,10 @@ class Sqlitelist extends StatefulWidget {
 class _SqlitelistState extends State<Sqlitelist> {
   Database? _database;
   List<Map<String, dynamic>> _loginData = [];
+  List<Map<String, dynamic>> _callsheetData = [];
+  List<Map<String, dynamic>> _intimeData = [];
   bool _isLoading = true;
+  int _viewMode = 0; // 0: callsheet, 1: login, 2: intime
 
   @override
   void initState() {
@@ -19,39 +22,29 @@ class _SqlitelistState extends State<Sqlitelist> {
     _initializeDatabase();
   }
 
-  // Initialize database connection
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
 
-  // Initialize database connection (NO TABLE CREATION)
   Future<Database> _initDatabase() async {
     try {
       String dbPath =
           path.join(await getDatabasesPath(), 'production_login.db');
       print('📍 SQLite List - Connecting to existing database: $dbPath');
-
-      // Just open the existing database without onCreate
       final db = await openDatabase(
         dbPath,
         version: 1,
-        // REMOVED: onCreate callback since table already exists from login screen
       );
-
-      // Verify the table exists (created by login screen)
-      final tables = await db.rawQuery(
+      final logintable = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='login_data'");
-
-      if (tables.isEmpty) {
+      if (logintable.isEmpty) {
         throw Exception(
             'Login table not found. Please login first to create the database.');
       }
-
       print('✅ SQLite List - Connected to existing login_data table');
       print('📋 Table verification: Found login_data table');
-
       return db;
     } catch (e) {
       print('❌ SQLite List - Database connection error: $e');
@@ -59,10 +52,11 @@ class _SqlitelistState extends State<Sqlitelist> {
     }
   }
 
-  // Initialize database and fetch data
   Future<void> _initializeDatabase() async {
     try {
       await _fetchLoginData();
+      await _fetchCallsheetData();
+      await _fetchIntimeData();
     } catch (e) {
       print('❌ Error initializing database: $e');
       setState(() {
@@ -71,23 +65,17 @@ class _SqlitelistState extends State<Sqlitelist> {
     }
   }
 
-  // Fetch all login data from database
   Future<void> _fetchLoginData() async {
     try {
       setState(() {
         _isLoading = true;
       });
-
       final db = await database;
-
-      // Get all login records ordered by date (newest first)
       final List<Map<String, dynamic>> maps = await db.query(
         'login_data',
         orderBy: 'login_date DESC',
       );
-
-      print('📊 SQLite List - Retrieved ${maps.length} login records');
-
+      print('📊 SQLite List - Retrieved \\${maps.length} login records');
       setState(() {
         _loginData = maps;
         _isLoading = false;
@@ -100,18 +88,84 @@ class _SqlitelistState extends State<Sqlitelist> {
     }
   }
 
-  // Clear all login data
+  Future<void> _fetchCallsheetData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      final db = await database;
+      final callsheettable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheet'");
+      if (callsheettable.isEmpty) {
+        setState(() {
+          _callsheetData = [];
+          _isLoading = false;
+        });
+        return;
+      }
+      final List<Map<String, dynamic>> maps = await db.query(
+        'callsheet',
+        orderBy: 'created_at DESC',
+      );
+      print('📊 SQLite List - Retrieved \\${maps.length} callsheet records');
+      setState(() {
+        _callsheetData = maps;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error fetching callsheet data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchIntimeData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      final db = await database;
+      final intimeTable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='intime'");
+      if (intimeTable.isEmpty) {
+        setState(() {
+          _intimeData = [];
+          _isLoading = false;
+        });
+        return;
+      }
+      final List<Map<String, dynamic>> maps = await db.query(
+        'intime',
+        orderBy: 'marked_at DESC',
+      );
+      print('📊 SQLite List - Retrieved \\${maps.length} intime records');
+      setState(() {
+        _intimeData = maps;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error fetching intime data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _clearAllData() async {
     try {
       final db = await database;
-
-      // Show confirmation dialog
+      String table = _viewMode == 0
+          ? 'callsheet'
+          : _viewMode == 1
+              ? 'login_data'
+              : 'intime';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Clear All Data'),
           content: Text(
-              'Are you sure you want to clear all login data? This action cannot be undone.'),
+              'Are you sure you want to clear all $table data? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -124,15 +178,19 @@ class _SqlitelistState extends State<Sqlitelist> {
           ],
         ),
       );
-
       if (confirmed == true) {
-        await db.delete('login_data');
-        print('🗑️ All login data cleared');
-        await _fetchLoginData(); // Refresh the list
-
+        await db.delete(table);
+        print('🗑️ All $table data cleared');
+        if (_viewMode == 0) {
+          await _fetchCallsheetData();
+        } else if (_viewMode == 1) {
+          await _fetchLoginData();
+        } else {
+          await _fetchIntimeData();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('All login data cleared successfully'),
+            content: Text('All $table data cleared successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -148,14 +206,13 @@ class _SqlitelistState extends State<Sqlitelist> {
     }
   }
 
-  // Delete specific record
   Future<void> _deleteRecord(int id) async {
     try {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Delete Record'),
-          content: Text('Are you sure you want to delete this login record?'),
+          content: Text('Are you sure you want to delete this record?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -168,13 +225,22 @@ class _SqlitelistState extends State<Sqlitelist> {
           ],
         ),
       );
-
       if (confirmed == true) {
         final db = await database;
-        await db.delete('login_data', where: 'id = ?', whereArgs: [id]);
-        print('🗑️ Login record $id deleted');
-        await _fetchLoginData(); // Refresh the list
-
+        String table = _viewMode == 0
+            ? 'callsheet'
+            : _viewMode == 1
+                ? 'login_data'
+                : 'intime';
+        await db.delete(table, where: 'id = ?', whereArgs: [id]);
+        print('🗑️ $table record $id deleted');
+        if (_viewMode == 0) {
+          await _fetchCallsheetData();
+        } else if (_viewMode == 1) {
+          await _fetchLoginData();
+        } else {
+          await _fetchIntimeData();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Record deleted successfully'),
@@ -193,7 +259,6 @@ class _SqlitelistState extends State<Sqlitelist> {
     }
   }
 
-  // Format date for display
   String _formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return 'N/A';
     try {
@@ -216,7 +281,11 @@ class _SqlitelistState extends State<Sqlitelist> {
       backgroundColor: Color(0xFF355E8C),
       appBar: AppBar(
         title: Text(
-          'SQLite Login Data',
+          _viewMode == 0
+              ? 'SQLite Call Sheet Data'
+              : _viewMode == 1
+                  ? 'SQLite Login Data'
+                  : 'SQLite Intime Data',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -226,8 +295,29 @@ class _SqlitelistState extends State<Sqlitelist> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: Icon(Icons.swap_horiz, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _viewMode = (_viewMode + 1) % 3;
+              });
+            },
+            tooltip: _viewMode == 0
+                ? 'Show Login Data'
+                : _viewMode == 1
+                    ? 'Show Intime Data'
+                    : 'Show Call Sheet Data',
+          ),
+          IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _fetchLoginData,
+            onPressed: () async {
+              if (_viewMode == 0) {
+                await _fetchCallsheetData();
+              } else if (_viewMode == 1) {
+                await _fetchLoginData();
+              } else {
+                await _fetchIntimeData();
+              }
+            },
             tooltip: 'Refresh Data',
           ),
           IconButton(
@@ -245,13 +335,17 @@ class _SqlitelistState extends State<Sqlitelist> {
                   CircularProgressIndicator(color: Colors.white),
                   SizedBox(height: 16),
                   Text(
-                    'Loading login data...',
+                    'Loading ${_viewMode == 0 ? 'call sheet' : _viewMode == 1 ? 'login' : 'intime'} data...',
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ],
               ),
             )
-          : _loginData.isEmpty
+          : (_viewMode == 0
+                  ? _callsheetData.isEmpty
+                  : _viewMode == 1
+                      ? _loginData.isEmpty
+                      : _intimeData.isEmpty)
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -263,7 +357,11 @@ class _SqlitelistState extends State<Sqlitelist> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'No login data found',
+                        _viewMode == 0
+                            ? 'No call sheet data found'
+                            : _viewMode == 1
+                                ? 'No login data found'
+                                : 'No intime data found',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -272,7 +370,11 @@ class _SqlitelistState extends State<Sqlitelist> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Login through the app to see data here',
+                        _viewMode == 0
+                            ? 'Create a call sheet to see data here'
+                            : _viewMode == 1
+                                ? 'Login through the app to see data here'
+                                : 'Mark attendance to see intime data here',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.8),
                           fontSize: 14,
@@ -283,66 +385,97 @@ class _SqlitelistState extends State<Sqlitelist> {
                 )
               : Column(
                   children: [
-                    // Data summary header
                     Container(
                       padding: EdgeInsets.all(16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Total Records: ${_loginData.length}',
+                            'Total Records: '
+                            '${_viewMode == 0 ? _callsheetData.length : _viewMode == 1 ? _loginData.length : _intimeData.length}',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            'Active: ${_loginData.where((item) => item['is_active'] == 1).length}',
-                            style: TextStyle(
-                              color: Colors.green[300],
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                    // Data list
                     Expanded(
                       child: ListView.builder(
                         padding: EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _loginData.length,
+                        itemCount: _viewMode == 0
+                            ? _callsheetData.length
+                            : _viewMode == 1
+                                ? _loginData.length
+                                : _intimeData.length,
                         itemBuilder: (context, index) {
-                          final item = _loginData[index];
-
+                          final item = _viewMode == 0
+                              ? _callsheetData[index]
+                              : _viewMode == 1
+                                  ? _loginData[index]
+                                  : _intimeData[index];
                           return Card(
                             margin: EdgeInsets.only(bottom: 12),
                             elevation: 4,
                             child: ExpansionTile(
                               title: Text(
-                                item['manager_name'] ?? 'Unknown Manager',
+                                _viewMode == 0
+                                    ? (item['name'] ?? 'No Name')
+                                    : _viewMode == 1
+                                        ? (item['manager_name'] ??
+                                            'Unknown Manager')
+                                        : (item['name'] ?? 'No Name'),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Movie: ${item['registered_movie'] ?? 'N/A'}',
-                                    style: TextStyle(fontSize: 14),
-                                  ),
-                                  Text(
-                                    'Date: ${_formatDate(item['login_date'])}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              subtitle: _viewMode == 0
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                            'Location: ${item['location'] ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14)),
+                                        Text(
+                                            'Date: ${_formatDate(item['created_at'])}',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600])),
+                                      ],
+                                    )
+                                  : _viewMode == 1
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                'Movie: ${item['registered_movie'] ?? 'N/A'}',
+                                                style: TextStyle(fontSize: 14)),
+                                            Text(
+                                                'Date: ${_formatDate(item['login_date'])}',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600])),
+                                          ],
+                                        )
+                                      : Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                'VCID: ${item['vcid'] ?? 'N/A'}',
+                                                style: TextStyle(fontSize: 14)),
+                                            Text(
+                                                'Date: ${_formatDate(item['marked_at'])}',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600])),
+                                          ],
+                                        ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -357,22 +490,79 @@ class _SqlitelistState extends State<Sqlitelist> {
                                 Padding(
                                   padding: EdgeInsets.all(16),
                                   child: Column(
-                                    children: [
-                                      _buildDetailRow('Mobile Number',
-                                          item['mobile_number']),
-                                      _buildDetailRow(
-                                          'Project ID', item['project_id']),
-                                      _buildDetailRow(
-                                          'Production Type ID',
-                                          item['production_type_id']
-                                              ?.toString()),
-                                      _buildDetailRow('Production House',
-                                          item['production_house']),
-                                      _buildDetailRow(
-                                          'VM ID', item['vmid']?.toString()),
-                                      _buildDetailRow('Login Date',
-                                          _formatDate(item['login_date'])),
-                                    ],
+                                    children: _viewMode == 0
+                                        ? [
+                                            _buildDetailRow('Shift ID',
+                                                item['shiftId']?.toString()),
+                                            _buildDetailRow('Latitude',
+                                                item['latitude']?.toString()),
+                                            _buildDetailRow('Longitude',
+                                                item['longitude']?.toString()),
+                                            _buildDetailRow('Project ID',
+                                                item['projectId']?.toString()),
+                                            _buildDetailRow('VM ID',
+                                                item['vmid']?.toString()),
+                                            _buildDetailRow('VPID',
+                                                item['vpid']?.toString()),
+                                            _buildDetailRow('VPOID',
+                                                item['vpoid']?.toString()),
+                                            _buildDetailRow('VBPID',
+                                                item['vbpid']?.toString()),
+                                            _buildDetailRow(
+                                                'Production Type ID',
+                                                item['productionTypeid']
+                                                    ?.toString()),
+                                            _buildDetailRow(
+                                                'Location', item['location']),
+                                            _buildDetailRow('Location Type',
+                                                item['locationType']),
+                                            _buildDetailRow(
+                                                'Location Type ID',
+                                                item['locationTypeId']
+                                                    ?.toString()),
+                                            _buildDetailRow(
+                                                'Created At',
+                                                _formatDate(
+                                                    item['created_at'])),
+                                          ]
+                                        : _viewMode == 1
+                                            ? [
+                                                _buildDetailRow('Mobile Number',
+                                                    item['mobile_number']),
+                                                _buildDetailRow('Project ID',
+                                                    item['project_id']),
+                                                _buildDetailRow(
+                                                    'Production Type ID',
+                                                    item['production_type_id']
+                                                        ?.toString()),
+                                                _buildDetailRow(
+                                                    'Production House',
+                                                    item['production_house']),
+                                                _buildDetailRow('VM ID',
+                                                    item['vmid']?.toString()),
+                                                _buildDetailRow(
+                                                    'Login Date',
+                                                    _formatDate(
+                                                        item['login_date'])),
+                                                _buildDetailRow('Device ID',
+                                                    item['device_id']),
+                                              ]
+                                            : [
+                                                _buildDetailRow(
+                                                    'Name', item['name']),
+                                                _buildDetailRow('Designation',
+                                                    item['designation']),
+                                                _buildDetailRow(
+                                                    'Code', item['code']),
+                                                _buildDetailRow('Union Name',
+                                                    item['unionName']),
+                                                _buildDetailRow(
+                                                    'VCID', item['vcid']),
+                                                _buildDetailRow(
+                                                    'Marked At',
+                                                    _formatDate(
+                                                        item['marked_at'])),
+                                              ],
                                   ),
                                 ),
                               ],

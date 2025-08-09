@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_device_imei/flutter_device_imei.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
+import '../../Tesing/Sqlitelist.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
@@ -20,6 +23,63 @@ class CreateCallSheet extends StatefulWidget {
 
 class _CreateCallSheetState extends State<CreateCallSheet> {
   bool _isLoading = false;
+  bool _saveOffline = false;
+  // SQLite helpers for callsheet table
+  Future<Database> get _callsheetDb async {
+    String dbPath = path.join(await getDatabasesPath(), 'production_login.db');
+    return openDatabase(
+      dbPath,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS callsheet (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            shiftId INTEGER,
+            latitude REAL,
+            longitude REAL,
+            projectId TEXT,
+            vmid TEXT,
+            vpid TEXT,
+            vpoid TEXT,
+            vbpid TEXT,
+            productionTypeid INTEGER,
+            location TEXT,
+            locationType TEXT,
+            locationTypeId INTEGER,
+            created_at TEXT
+          )
+        ''');
+      },
+    );
+  }
+
+  Future<void> saveCallsheetToSQLite(Map<String, dynamic> data) async {
+    final db = await _callsheetDb;
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS callsheet (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        shiftId INTEGER,
+        latitude REAL,
+        longitude REAL,
+        projectId TEXT,
+        vmid TEXT,
+        vpid TEXT,
+        vpoid TEXT,
+        vbpid TEXT,
+        productionTypeid INTEGER,
+        location TEXT,
+        locationType TEXT,
+        locationTypeId INTEGER,
+        created_at TEXT
+      )
+    ''');
+    await db.insert('callsheet', data,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.close();
+  }
+
   bool screenLoading = false;
   TextEditingController _nameController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
@@ -33,38 +93,75 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   List<Map<String, dynamic>> shiftList = [];
   Map? createCallSheetresponse1;
   Map? createCallSheetresponse2;
-  String _imei = 'Unknown';
+  String _deviceId = 'Unknown';
   String? managerName;
   String? registeredMovie;
   String selectedCallsheetName = '';
 
-  Future<void> _initImei() async {
+  Future<void> _initDeviceId() async {
     await _requestPermission();
-    String? imei;
+    String deviceId = 'Unknown';
     try {
-      imei = await FlutterDeviceImei.instance.getIMEI();
-    } catch (e) {
-      imei = 'Failed to get IMEI: $e';
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id; // Android ID
+        print('🤖 Android Device ID: $deviceId');
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? 'iOS-Unknown';
+        print('🍎 iOS Device ID: $deviceId');
+      } else {
+        deviceId = 'Platform-Not-Supported';
+        print('❌ Unsupported platform');
+      }
+
+      // Ensure we have a valid device ID
+      if (deviceId.isEmpty) {
+        deviceId = 'Empty-Device-ID-${DateTime.now().millisecondsSinceEpoch}';
+        print('⚠️ Device ID was empty, using fallback');
+      }
+    } catch (e, stackTrace) {
+      deviceId = 'Error-${DateTime.now().millisecondsSinceEpoch}';
+      print('❌ Device ID error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+
+      // Try a fallback approach
+      try {
+        if (Platform.isAndroid) {
+          DeviceInfoPlugin basicInfo = DeviceInfoPlugin();
+          AndroidDeviceInfo basicAndroidInfo = await basicInfo.androidInfo;
+          String fallbackId =
+              '${basicAndroidInfo.brand}-${basicAndroidInfo.model}-${DateTime.now().millisecondsSinceEpoch}';
+          deviceId = fallbackId;
+          print('🔄 Using fallback Android ID: $deviceId');
+        }
+      } catch (fallbackError) {
+        print('❌ Fallback also failed: $fallbackError');
+        deviceId = 'Fallback-Failed-${DateTime.now().millisecondsSinceEpoch}';
+      }
     }
 
     if (!mounted) return;
 
     setState(() {
-      _imei = imei ?? 'Unavailable';
+      _deviceId = deviceId;
     });
   }
 
   Future<void> initializeDevice() async {
     try {
-      await _initImei();
-      if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+      await _initDeviceId();
+      if (_deviceId != 'Unavailable' && !_deviceId.startsWith('Failed')) {
         await passDeviceId();
       } else {
-        print('IMEI not available: $_imei');
-        // Set fallback values if IMEI is not available
+        print('Device ID not available: $_deviceId');
+        // Set fallback values if Device ID is not available
         if (mounted) {
           setState(() {
-            managerName = "IMEI not available";
+            managerName = "Device ID not available";
             registeredMovie = "N/A";
           });
         }
@@ -81,9 +178,14 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   }
 
   Future<void> _requestPermission() async {
-    var status = await Permission.phone.status;
-    if (!status.isGranted) {
-      await Permission.phone.request();
+    // For device_info_plus, we don't need special permissions for Android ID
+    // Just check if we can access basic device info
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      await deviceInfo.androidInfo; // Test access
+      print('✅ Device info access available');
+    } catch (e) {
+      print('⚠️ Limited device info access: $e');
     }
   }
 
@@ -186,7 +288,8 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
       "productionTypeid": productionTypeId,
       "location": _locationController.text,
       "locationType": getLocationTypeLabel(selectedLocationType),
-      "locationTypeId": selectedLocationType
+      "locationTypeId": selectedLocationType,
+      "created_at": DateTime.now().toIso8601String(),
     };
     final response = await http.post(
       processSessionRequest,
@@ -196,21 +299,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
             'U2DhAAJYK/dbno+9M7YQDA/pzwEzOu43/EiwXnpz9lfxZA32d6CyxoYt1OfWxfE1oAquMJjvptk3K/Uw1/9mSknCQ2OVkG+kIptUboOqaxSqSXbi7MYsuyUkrnedc4ftw0SORisKVW5i/w1q0Lbafn+KuOMEvxzLXjhK7Oib+n4wyZM7VhIVYcODI3GZyxHmxsstQiQk9agviX9U++t4ZD4C7MbuIJtWCYuClDarLhjAXx3Ulr/ItA3RgyIUD6l3kjpsHxWLqO3kkZCCPP8N5+7SoFw4hfJIftD7tRUamgNZQwPzkq60YRIzrs1BlAQEBz4ofX1Uv2ky8t5XQLlEJw==',
         'VSID': loginresponsebody?['vsid']?.toString() ?? "",
       },
-      body: jsonEncode({
-        "name": _nameController.text,
-        "shiftId": selectedShiftId,
-        "latitude": selectedLatitude,
-        "longitude": selectedLongitude,
-        "projectId": projectId,
-        "vmid": loginresult!['vmid'],
-        "vpid": loginresult!['vpid'],
-        "vpoid": loginresponsebody!['vpoid'],
-        "vbpid": loginresponsebody!['vbpid'],
-        "productionTypeid": productionTypeId,
-        "location": _locationController.text,
-        "locationType": getLocationTypeLabel(selectedLocationType),
-        "locationTypeId": selectedLocationType
-      }),
+      body: jsonEncode(payload),
     );
 
     setState(() {
@@ -229,12 +318,11 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
 
       createCallSheetresponse1 = json.decode(response.body);
       if (createCallSheetresponse1!['message'] == "Success") {
+        if (_saveOffline) {
+          await saveCallsheetToSQLite(payload);
+        }
         showsuccessPopUp(context, "created call sheet successfully", () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Routescreen(initialIndex: 1),
-              ));
+          Navigator.pop(context);
         });
       } else {
         showmessage(context, createCallSheetresponse1!['message'], "ok");
@@ -254,7 +342,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
               'lb+u8AHQGWL1qQsbAPInJlw74qN/CO11M+zHF2J5xA8ATonyNjJbolrErxHS5J62zttxxaH19jWydCT+ynunHecYrHdCg2VNdx7y9W3uC91rR4vOUGnnbOZqqXVnkXsVsnjFP6FidZjmxYmYsHiiX3iMckkd1eMHoew/SZYZJNriRZ9aIl7RwOhFExH6cBufpjKE4UIiCR0Wtj09SEMwGyh1RgE0sI9VzsmM6Cyto56RjkkeLOcD6Lv5SLXmPDul6jgIiwVjelkiHOCmTnI8L4/+esXkkAmdvTgA/4WgkQPAQwse/YhTOOsePwaxlzYC3Ut0ipJ9qt2eqGWUdeWoQw==',
           'VSID': loginresponsebody?['vsid']?.toString() ?? "",
         },
-        body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
+        body: jsonEncode(<String, dynamic>{"deviceid": _deviceId.toString()}),
       );
 
       if (response.statusCode == 200) {
@@ -435,17 +523,12 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
                                   SizedBox(
                                     height: 10,
                                   ),
-                                  Text(
-                                      'Fill in your shift details to create a new callsheet'),
-                                  SizedBox(
-                                    height: 10,
-                                  ),
                                   Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Container(
                                         width:
                                             MediaQuery.of(context).size.width,
-                                        height: 380,
+                                        height: 440,
                                         decoration: BoxDecoration(
                                             borderRadius:
                                                 BorderRadius.circular(20),
@@ -630,6 +713,30 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
                                                     ),
                                                   ),
                                                 ),
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Checkbox(
+                                                    value: _saveOffline,
+                                                    onChanged: (val) {
+                                                      setState(() {
+                                                        _saveOffline =
+                                                            val ?? false;
+                                                      });
+                                                    },
+                                                  ),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Enable Offline Mode',
+                                                      style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w500),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),

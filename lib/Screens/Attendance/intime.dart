@@ -7,35 +7,30 @@ import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class IntimeScreen extends StatefulWidget {
+class IntimeScreen extends StatelessWidget {
   const IntimeScreen({super.key});
 
   @override
-  State<IntimeScreen> createState() => _IntimeScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<NFCNotifier>(
+      create: (_) => NFCNotifier(),
+      builder: (context, child) => _IntimeScreenBody(),
+    );
+  }
 }
 
-class _IntimeScreenState extends State<IntimeScreen> {
+class _IntimeScreenBody extends StatefulWidget {
+  @override
+  State<_IntimeScreenBody> createState() => _IntimeScreenBodyState();
+}
+
+class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
   String debugMessage = '';
   bool isOffline = false; // 🔁 default is Online
 
   Future<void> handleVCID(String vcid) async {
-    if (isOffline) {
-      await storeVCIDLocally(vcid);
-      updateDebugMessage("Saved VCID locally (Offline): $vcid");
-    } else {
-      // Online Mode – Direct API call
-      await AttendanceService.markAttendance(vcid);
-      updateDebugMessage("Marked Attendance Online: $vcid");
-    }
-  }
-
-  Future<void> storeVCIDLocally(String vcid) async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('offline_vcids') ?? [];
-    if (!stored.contains(vcid)) {
-      stored.add(vcid);
-      await prefs.setStringList('offline_vcids', stored);
-    }
+    await AttendanceService.markAttendance(vcid);
+    updateDebugMessage("Marked Attendance Online: $vcid");
   }
 
   void updateDebugMessage(String msg) {
@@ -63,27 +58,6 @@ class _IntimeScreenState extends State<IntimeScreen> {
         backgroundColor: Colors.white,
         title: const Text("In-time", style: TextStyle(color: Colors.black)),
         elevation: 0,
-        actions: [
-          Row(
-            children: [
-              const Text("Online", style: TextStyle(color: Colors.black)),
-              Switch(
-                value: isOffline,
-                onChanged: (value) {
-                  if (mounted) {
-                    setState(() {
-                      isOffline = value;
-                      debugMessage =
-                          value ? "Offline Mode ON" : "Online Mode ON";
-                    });
-                  }
-                },
-              ),
-              const Text("Offline", style: TextStyle(color: Colors.black)),
-              const SizedBox(width: 8),
-            ],
-          ),
-        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.push(
@@ -115,15 +89,17 @@ class _IntimeScreenState extends State<IntimeScreen> {
                       );
                     }
 
-                    if (provider.message.isNotEmpty) {
+                    if (provider.message.isNotEmpty && provider.vcid != null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) async {
                         await handleVCID(provider.vcid.toString());
-                        Navigator.pop(context);
+                        final currentMessage = provider.message;
+                        final currentVcid = provider.vcid;
+                        provider.clearNfcData();
                         showResultDialogi(
                           context,
-                          provider.message,
+                          currentMessage,
                           () {},
-                          provider.vcid.toString(),
+                          currentVcid.toString(),
                         );
                       });
                     }

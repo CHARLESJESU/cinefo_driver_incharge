@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_device_imei/flutter_device_imei.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
@@ -33,37 +33,79 @@ class _CloseCallSheetState extends State<CloseCallSheet> {
   String? managerName;
   String? registeredMovie;
 
-  String _imei = 'Unknown';
+  String _deviceId = 'Unknown';
 
-  Future<void> _initImei() async {
+  Future<void> _initDeviceId() async {
     await _requestPermission();
-    String? imei;
+    String deviceId = 'Unknown';
     try {
-      imei = await FlutterDeviceImei.instance.getIMEI();
-    } catch (e) {
-      imei = 'Failed to get IMEI: $e';
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id; // Android ID
+        print('🤖 Android Device ID: $deviceId');
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? 'iOS-Unknown';
+        print('🍎 iOS Device ID: $deviceId');
+      } else {
+        deviceId = 'Platform-Not-Supported';
+        print('❌ Unsupported platform');
+      }
+
+      // Ensure we have a valid device ID
+      if (deviceId.isEmpty) {
+        deviceId = 'Empty-Device-ID-${DateTime.now().millisecondsSinceEpoch}';
+        print('⚠️ Device ID was empty, using fallback');
+      }
+    } catch (e, stackTrace) {
+      deviceId = 'Error-${DateTime.now().millisecondsSinceEpoch}';
+      print('❌ Device ID error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+
+      // Try a fallback approach
+      try {
+        if (Platform.isAndroid) {
+          DeviceInfoPlugin basicInfo = DeviceInfoPlugin();
+          AndroidDeviceInfo basicAndroidInfo = await basicInfo.androidInfo;
+          String fallbackId =
+              '${basicAndroidInfo.brand}-${basicAndroidInfo.model}-${DateTime.now().millisecondsSinceEpoch}';
+          deviceId = fallbackId;
+          print('🔄 Using fallback Android ID: $deviceId');
+        }
+      } catch (fallbackError) {
+        print('❌ Fallback also failed: $fallbackError');
+        deviceId = 'Fallback-Failed-${DateTime.now().millisecondsSinceEpoch}';
+      }
     }
 
     if (!mounted) return;
 
     setState(() {
-      _imei = imei ?? 'Unavailable';
+      _deviceId = deviceId;
     });
   }
 
   Future<void> initializeDevice() async {
-    await _initImei();
-    if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+    await _initDeviceId();
+    if (_deviceId != 'Unavailable' && !_deviceId.startsWith('Failed')) {
       await passDeviceId();
     } else {
-      print('IMEI not available: $_imei');
+      print('Device ID not available: $_deviceId');
     }
   }
 
   Future<void> _requestPermission() async {
-    var status = await Permission.phone.status;
-    if (!status.isGranted) {
-      await Permission.phone.request();
+    // For device_info_plus, we don't need special permissions for Android ID
+    // Just check if we can access basic device info
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      await deviceInfo.androidInfo; // Test access
+      print('✅ Device info access available');
+    } catch (e) {
+      print('⚠️ Limited device info access: $e');
     }
   }
 
@@ -101,7 +143,7 @@ class _CloseCallSheetState extends State<CloseCallSheet> {
             'lb+u8AHQGWL1qQsbAPInJlw74qN/CO11M+zHF2J5xA8ATonyNjJbolrErxHS5J62zttxxaH19jWydCT+ynunHecYrHdCg2VNdx7y9W3uC91rR4vOUGnnbOZqqXVnkXsVsnjFP6FidZjmxYmYsHiiX3iMckkd1eMHoew/SZYZJNriRZ9aIl7RwOhFExH6cBufpjKE4UIiCR0Wtj09SEMwGyh1RgE0sI9VzsmM6Cyto56RjkkeLOcD6Lv5SLXmPDul6jgIiwVjelkiHOCmTnI8L4/+esXkkAmdvTgA/4WgkQPAQwse/YhTOOsePwaxlzYC3Ut0ipJ9qt2eqGWUdeWoQw==',
         'VSID': loginresponsebody?['vsid']?.toString() ?? "",
       },
-      body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
+      body: jsonEncode(<String, dynamic>{"deviceid": _deviceId.toString()}),
     );
 
     if (response.statusCode == 200) {

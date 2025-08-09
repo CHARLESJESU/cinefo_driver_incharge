@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 
 class MyHomescreen extends StatefulWidget {
   const MyHomescreen({super.key});
@@ -11,6 +13,69 @@ class MyHomescreen extends StatefulWidget {
 
 class _MyHomescreenState extends State<MyHomescreen> {
   bool _showAllItems = false;
+  String? _deviceId;
+  String? _managerName;
+  String? _mobileNumber;
+  String? _registeredMovie;
+  String? _productionHouse;
+  List<Map<String, dynamic>> _callsheetList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLoginAndCallsheetData();
+  }
+
+  Future<void> _fetchLoginAndCallsheetData() async {
+    try {
+      String dbPath =
+          path.join(await getDatabasesPath(), 'production_login.db');
+      final db = await openDatabase(dbPath);
+      // Fetch login_data
+      final List<Map<String, dynamic>> loginMaps = await db.query(
+        'login_data',
+        orderBy: 'id ASC',
+        limit: 1,
+      );
+      if (loginMaps.isNotEmpty && mounted) {
+        setState(() {
+          _deviceId = loginMaps.first['device_id']?.toString() ?? 'N/A';
+          _managerName = loginMaps.first['manager_name']?.toString() ?? '';
+          _mobileNumber = loginMaps.first['mobile_number']?.toString() ?? '';
+          _registeredMovie =
+              loginMaps.first['registered_movie']?.toString() ?? '';
+          _productionHouse =
+              loginMaps.first['production_house']?.toString() ?? '';
+        });
+      }
+      // Fetch callsheet table (if exists)
+      final callsheetTable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheet'");
+      if (callsheetTable.isNotEmpty) {
+        final List<Map<String, dynamic>> callsheetMaps = await db.query(
+          'callsheet',
+          orderBy: 'created_at DESC',
+        );
+        setState(() {
+          _callsheetList = callsheetMaps;
+        });
+      } else {
+        setState(() {
+          _callsheetList = [];
+        });
+      }
+      await db.close();
+    } catch (e) {
+      setState(() {
+        _deviceId = 'N/A';
+        _managerName = '';
+        _mobileNumber = '';
+        _registeredMovie = '';
+        _productionHouse = '';
+        _callsheetList = [];
+      });
+    }
+  }
 
   // Method to show logout confirmation dialog
   void _showLogoutDialog(BuildContext context) {
@@ -199,6 +264,34 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       _showLogoutDialog(context);
                     },
                   ),
+                  Divider(
+                    color: Colors.white.withOpacity(0.3),
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.devices,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    title: Text(
+                      'Device ID',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      _deviceId ?? 'Loading...',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -247,7 +340,6 @@ class _MyHomescreenState extends State<MyHomescreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Container(
-                      //container 1
                       height: 130,
                       decoration: BoxDecoration(
                         color: Color(0xFF355E8C),
@@ -266,20 +358,17 @@ class _MyHomescreenState extends State<MyHomescreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("Srinivasan.S",
+                                Text(_managerName ?? '',
                                     style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white)),
-                                Text("CEO",
+                                Text("PRODUCTION MANAGER",
                                     style: TextStyle(
-                                        fontSize: 13, color: Colors.white70)),
-                                Text("CHENNAI GREENCITY",
+                                        fontSize: 12, color: Colors.white70)),
+                                Text(_mobileNumber ?? '',
                                     style: TextStyle(
-                                        fontSize: 13, color: Colors.white70)),
-                                Text("managing director",
-                                    style: TextStyle(
-                                        fontSize: 13, color: Colors.white70)),
+                                        fontSize: 12, color: Colors.white70)),
                               ],
                             ),
                           )
@@ -323,7 +412,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    "Avengers: Endgame",
+                                    _registeredMovie ?? '',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
@@ -332,7 +421,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    "Action • 2019",
+                                    _productionHouse ?? '',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.white.withOpacity(0.8),
@@ -364,57 +453,86 @@ class _MyHomescreenState extends State<MyHomescreen> {
                     ),
                   ),
                   SizedBox(height: 20), // Space after container 2
-                  // List of items
+                  // Offline call sheet section
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Column(
-                      children: [
-                        // Display first 3 items or all items based on _showAllItems
-                        ...(_showAllItems
-                            ? _getAllListItems()
-                            : _getInitialListItems()),
-
-                        SizedBox(height: 15),
-                        // Show More/Less button
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _showAllItems = !_showAllItems;
-                            });
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                vertical: 12, horizontal: 20),
-                            decoration: BoxDecoration(
-                              color: Color(0xFF355E8C).withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _showAllItems ? "Show Less" : "Show More",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(
-                                  _showAllItems
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ],
+                    child: Container(
+                      margin: EdgeInsets.only(top: 10),
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Online call sheet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2B5682),
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 10),
+                          ..._callsheetList.map((item) => _buildListItem(
+                                item['name']?.toString() ?? '',
+                                item['locationType']?.toString() ?? '',
+                                (item['created_at']?.toString() ?? '')
+                                    .split('T')
+                                    .first,
+                              )),
+                        ],
+                      ),
                     ),
                   ),
+                  if (_callsheetList.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Container(
+                        margin: EdgeInsets.only(top: 10),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Offline call sheet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2B5682),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            ..._callsheetList.map((item) => _buildListItem(
+                                  item['name']?.toString() ?? '',
+                                  item['locationType']?.toString() ?? '',
+                                  (item['created_at']?.toString() ?? '')
+                                      .split('T')
+                                      .first,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -425,25 +543,6 @@ class _MyHomescreenState extends State<MyHomescreen> {
   }
 
   // Helper method to get initial 3 list items
-  List<Widget> _getInitialListItems() {
-    return [
-      _buildListItem("CN364-Mid-Night", "10pm-6am(mid-night)", "04-08-2025"),
-      _buildListItem("CN365-Morning", "6am-2pm(morning)", "05-08-2025"),
-      _buildListItem("CN366-Evening", "2pm-10pm(evening)", "06-08-2025"),
-    ];
-  }
-
-  // Helper method to get all 6 list items
-  List<Widget> _getAllListItems() {
-    return [
-      _buildListItem("CN364-Mid-Night", "10pm-6am(mid-night)", "04-08-2025"),
-      _buildListItem("CN365-Morning", "6am-2pm(morning)", "05-08-2025"),
-      _buildListItem("CN366-Evening", "2pm-10pm(evening)", "06-08-2025"),
-      _buildListItem("CN367-Night", "10pm-6am(night)", "07-08-2025"),
-      _buildListItem("CN368-Day", "8am-8pm(day)", "08-08-2025"),
-      _buildListItem("CN369-Late", "11pm-7am(late)", "09-08-2025"),
-    ];
-  }
 
   // Helper method to build individual list item
   Widget _buildListItem(String code, String timing, String date) {

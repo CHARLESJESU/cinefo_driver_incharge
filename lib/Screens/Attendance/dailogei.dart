@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'dart:async';
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -55,6 +57,29 @@ class _CountdownDialog extends StatefulWidget {
 }
 
 class _CountdownDialogState extends State<_CountdownDialog> {
+  Future<void> saveIntimeToSQLite(Map<String, dynamic> data) async {
+    final dbPath = await getDatabasesPath();
+    final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+    // Drop the old table if it exists to ensure schema is correct
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS intime (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        designation TEXT,
+        code TEXT,
+        unionName TEXT,
+        vcid TEXT,
+        marked_at TEXT,
+        latitude TEXT,
+        longitude TEXT,
+        location TEXT
+      )
+    ''');
+    await db.insert('intime', data);
+    await db.close();
+  }
+
   String? latitude, longitude, location;
   Position? _currentPosition;
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -67,6 +92,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   String responseMessage = "";
 
   void updateDebugMessage(String msg) {
+    if (!mounted) return;
     setState(() {
       debugMessage = msg;
     });
@@ -148,17 +174,51 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         desiredAccuracy: LocationAccuracy.high,
       );
       print("markattendance called with vcid: $vcid");
-      // Mark attendance API call
-      final response = await http.post(
-        processSessionRequest, // Replace with your API URL
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'VMETID':
-              "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
-          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-        },
-        body: jsonEncode({
-          "data": vcid,
+
+      // 1. Prepare the data to save
+      Map<String, dynamic> intimeData = {
+        'name': '',
+        'designation': '',
+        'code': '',
+        'unionName': '',
+        'vcid': vcid,
+        'marked_at': DateTime.now().toIso8601String(),
+        'latitude': position.latitude.toString(),
+        'longitude': position.longitude.toString(),
+        'location': location ?? "Unknown",
+      };
+      final lines = widget.message.split('\n');
+      for (final line in lines) {
+        if (line.startsWith('Name:'))
+          intimeData['name'] = line.replaceFirst('Name:', '').trim();
+        if (line.startsWith('Designation:'))
+          intimeData['designation'] =
+              line.replaceFirst('Designation:', '').trim();
+        if (line.startsWith('Code:'))
+          intimeData['code'] = line.replaceFirst('Code:', '').trim();
+        if (line.startsWith('Union Name:'))
+          intimeData['unionName'] = line.replaceFirst('Union Name:', '').trim();
+      }
+
+      // 2. Save to SQLite first
+      await saveIntimeToSQLite(intimeData);
+
+      // 3. Fetch the just-saved row (latest by marked_at)
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      final List<Map<String, dynamic>> rows = await db.query(
+        'intime',
+        orderBy: 'marked_at DESC',
+        limit: 1,
+      );
+      await db.close();
+
+      if (rows.isNotEmpty) {
+        final row = rows.first;
+
+        // 4. Prepare the requestBody from the row
+        final requestBody = jsonEncode({
+          "data": row['vcid'],
           "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
           "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
           "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
@@ -182,39 +242,53 @@ class _CountdownDialogState extends State<_CountdownDialog> {
             "leadRoleOtherLanguage": 0,
             "secondLeadRoleOtherLanguage": 0
           },
-          "latitude": position.latitude.toString(),
-          "longitude": position.longitude.toString(),
+          "latitude": row['latitude'],
+          "longitude": row['longitude'],
           "attendanceStatus": "1",
-          "location": location ?? "Unknown",
-        }),
-      );
-      setState(() {
-        first = false;
-      });
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        final msg = result['message'];
-        final err = result['errordescription'];
-        print(result);
-        print(vcid);
+          "location": row['location'],
+        });
 
-        if (msg == "Success") {
-          updateDebugMessage("Attendance marked successfully.");
-          setState(() => responseMessage = "Attendance marked successfully.");
-        } else if (err == "NOT CLOSED") {
-          updateDebugMessage("Previous session not closed.");
-          setState(() => responseMessage = "Previous session not closed.");
+        // 5. POST to API
+        final response = await http.post(
+          processSessionRequest,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'VMETID':
+                "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
+            'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+          },
+          body: requestBody,
+        );
+
+        setState(() {
+          first = false;
+        });
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          final msg = result['message'];
+          final err = result['errordescription'];
+          print(result);
+          print(row['vcid']);
+
+          if (msg == "Success") {
+            updateDebugMessage("Attendance marked successfully.");
+            setState(() => responseMessage = "Attendance marked successfully.");
+          } else {
+            updateDebugMessage("Attendance failed: $err");
+            setState(() => responseMessage = "Attendance failed: $err");
+          }
         } else {
-          updateDebugMessage("Attendance failed: $err");
-          setState(() => responseMessage = "Attendance failed: $err");
+          setState(
+              () => responseMessage = "Server error: ${response.statusCode}");
+          updateDebugMessage("Server error: ${response.statusCode}");
+          print(requestBody);
+          print(loginresponsebody?['vsid']);
         }
-      } else {
-        setState(
-            () => responseMessage = "Server error: ${response.statusCode}");
-        updateDebugMessage("Server error: ${response.statusCode}");
       }
     } catch (e) {
+      print('Error in markattendance: $e');
     } finally {
+      if (!mounted) return;
       setState(() => _isloading = false);
     }
   }
@@ -243,83 +317,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     });
   }
 
-  // Future<void> _syncOfflineData() async {
-  //   // Get the current location
-  //   Position position = await Geolocator.getCurrentPosition(
-  //     desiredAccuracy: LocationAccuracy.high,
-  //   );
-  //   final connectivity = await Connectivity().checkConnectivity();
-  //   if (connectivity == ConnectivityResult.none) {
-  //     updateDebugMessage("No internet connection, skipping sync.");
-  //     return; // Wait until there is a network
-  //   }
-
-  //   updateDebugMessage(
-  //       "Internet connected, attempting to sync offline data...");
-
-  //   // Retrieve offline stored NFC data
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   List<String> storedList = prefs.getStringList("offline_attendance") ?? [];
-
-  //   List<String> updatedList = [];
-
-  //   for (String jsonData in storedList) {
-  //     try {
-  //       Map<String, dynamic> data = jsonDecode(jsonData);
-
-  //       // Log the data to be sent to the server
-  //       print("Syncing data: $data");
-
-  //       // Make the API call to mark attendance
-  //       final response = await http.post(
-  //         processSessionRequest, // Your API URL
-  //         headers: {
-  //           'Content-Type': 'application/json; charset=UTF-8',
-  //           'VMETID':
-  //               "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
-  //           'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-  //         },
-  //         body: jsonEncode({
-  //           "data": data['vcid'],
-  //           "callsheetid": callsheetid.toString(),
-  //           "projectid": projectId.toString(),
-  //           "latitude": position.latitude.toString(),
-  //           "longitude": position.longitude.toString(),
-  //           "attendanceStatus": "2",
-  //           "location": location ?? "Unknown",
-  //         }),
-  //       );
-
-  //       // Log the server response
-  //       print("Server response: ${response.body}");
-
-  //       if (response.statusCode == 200) {
-  //         final result = jsonDecode(response.body);
-  //         final msg = result['message'];
-  //         final err = result['errordescription'];
-  //         print(result);
-
-  //         if (msg == "Success") {
-  //           updateDebugMessage("Attendance marked successfully.");
-  //         } else if (err == "NOT CLOSED") {
-  //           updateDebugMessage("Previous session not closed.");
-  //         } else {
-  //           updateDebugMessage("Attendance failed: $err");
-  //         }
-  //       } else {
-  //         updateDebugMessage("Server error: ${response.statusCode}");
-  //       }
-  //     } catch (e) {
-  //       updateDebugMessage("Attendance error: $e");
-  //     } finally {
-  //       setState(() => _isloading = false);
-  //     }
-  //   }
-
-  //   // Store the remaining failed items back
-  //   await prefs.setStringList("offline_attendance", updatedList);
-  // }
-
   @override
   Widget build(BuildContext context) {
     final imageUrl = transformVcidToImageUrl(widget.vcid);
@@ -345,13 +342,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
                     )
                   : const Icon(Icons.person, size: 60, color: Colors.grey),
             ),
-          // Text(
-          //   isNfcDisabled
-          //       ? "Please enable NFC from settings to continue."
-          //       : "Attendance posted successfully. Validation in process.",
-          //   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          //   textAlign: TextAlign.center,
-          // ),
           const SizedBox(height: 10),
           Text(
             responseMessage.isNotEmpty ? responseMessage : widget.message,

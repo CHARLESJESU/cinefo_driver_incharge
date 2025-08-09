@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:nfc_manager/nfc_manager.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
-import 'package:flutter_device_imei/flutter_device_imei.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 
@@ -40,7 +39,7 @@ class _LoginscreenState extends State<Loginscreen> {
 
       final db = await openDatabase(
         dbPath,
-        version: 1,
+        version: 2,
         onCreate: (Database db, int version) async {
           print('🔨 Creating login_data table...');
           await db.execute('''
@@ -55,10 +54,19 @@ class _LoginscreenState extends State<Loginscreen> {
               production_house TEXT,
               vmid INTEGER,
               login_date TEXT,
-         
+              device_id TEXT
             )
           ''');
           print('✅ SQLite login_data table created successfully');
+        },
+        onUpgrade: (Database db, int oldVersion, int newVersion) async {
+          if (oldVersion < 2) {
+            // Add device_id column if it doesn't exist
+            print(
+                '🛠️ Upgrading database: Adding device_id column if needed...');
+            await db
+                .execute("ALTER TABLE login_data ADD COLUMN device_id TEXT;");
+          }
         },
       );
 
@@ -105,6 +113,7 @@ class _LoginscreenState extends State<Loginscreen> {
         'production_house': productionHouse ?? '',
         'vmid': vmid ?? 0,
         'login_date': DateTime.now().toIso8601String(),
+        'device_id': _deviceId,
       };
 
       print('📝 Adding FIRST USER login data: $loginData');
@@ -230,31 +239,89 @@ class _LoginscreenState extends State<Loginscreen> {
   int? vmid;
   bool screenloading = false;
   bool _obscureText = true;
-  String _imei = 'Unknown';
+  String _deviceId = 'Unknown';
 
-  Future<void> _initImei() async {
+  Future<void> _initDeviceId() async {
     await _requestPermission();
-    String? imei;
+    String deviceId = 'Unknown';
     try {
-      imei = await FlutterDeviceImei.instance.getIMEI();
-    } catch (e) {
-      imei = 'Failed to get IMEI: $e';
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        // For Android, we'll use Android ID as a unique identifier
+        // Note: IMEI access is restricted in newer Android versions
+        deviceId = androidInfo.id;
+        print('📱 Android Device Info:');
+        print('   - Android ID: ${androidInfo.id}');
+        print('   - Model: ${androidInfo.model}');
+        print('   - Brand: ${androidInfo.brand}');
+        print('   - Manufacturer: ${androidInfo.manufacturer}');
+        print('   - Product: ${androidInfo.product}');
+        print('   - Device: ${androidInfo.device}');
+        print('   - Hardware: ${androidInfo.hardware}');
+        print('   - Board: ${androidInfo.board}');
+        print('   - SDK Int: ${androidInfo.version.sdkInt}');
+        print('   - Release: ${androidInfo.version.release}');
+      } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        // For iOS, use identifierForVendor as unique identifier
+        deviceId = iosInfo.identifierForVendor ?? 'iOS-Unknown';
+        print('📱 iOS Device Info:');
+        print('   - Identifier: ${iosInfo.identifierForVendor}');
+        print('   - Model: ${iosInfo.model}');
+        print('   - Name: ${iosInfo.name}');
+        print('   - SystemName: ${iosInfo.systemName}');
+        print('   - SystemVersion: ${iosInfo.systemVersion}');
+      } else {
+        deviceId = 'Platform-Not-Supported';
+        print('❌ Unsupported platform: ${Theme.of(context).platform}');
+      }
+
+      // Ensure we have a valid device ID
+      if (deviceId.isEmpty) {
+        deviceId = 'Empty-Device-ID';
+        print('⚠️ Device ID was empty, using fallback');
+      }
+    } catch (e, stackTrace) {
+      deviceId = 'Error-${DateTime.now().millisecondsSinceEpoch}';
+      print('❌ Error getting device info: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+
+      // Try a fallback approach
+      try {
+        if (Theme.of(context).platform == TargetPlatform.android) {
+          // Try to get basic info without accessing problematic properties
+          DeviceInfoPlugin basicInfo = DeviceInfoPlugin();
+          AndroidDeviceInfo basicAndroidInfo = await basicInfo.androidInfo;
+          String fallbackId =
+              '${basicAndroidInfo.brand}-${basicAndroidInfo.model}-${DateTime.now().millisecondsSinceEpoch}';
+          deviceId = fallbackId;
+          print('🔄 Using fallback Android ID: $deviceId');
+        }
+      } catch (fallbackError) {
+        print('❌ Fallback also failed: $fallbackError');
+        deviceId = 'Fallback-Failed-${DateTime.now().millisecondsSinceEpoch}';
+      }
     }
 
     if (!mounted) return;
 
     setState(() {
-      _imei = imei ?? 'Unavailable';
+      _deviceId = deviceId;
     });
+
+    print('🔑 Final Device ID: $_deviceId');
   }
 
   Future<void> initializeDevice() async {
     try {
-      await _initImei();
-      if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+      await _initDeviceId();
+      if (_deviceId != 'Unavailable' && !_deviceId.startsWith('Failed')) {
         await passDeviceId();
       } else {
-        print('IMEI not available: $_imei');
+        print('Device ID not available: $_deviceId');
         // Set managerName to null to show error UI
         setState(() {
           managerName = null;
@@ -269,9 +336,18 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   Future<void> _requestPermission() async {
-    var status = await Permission.phone.status;
-    if (!status.isGranted) {
-      await Permission.phone.request();
+    // For device_info_plus, we don't need special permissions for Android ID
+    // Just check if we can access basic device info
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        await deviceInfo.androidInfo; // Test access
+      } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+        await deviceInfo.iosInfo; // Test access
+      }
+      print('✅ Device info access available');
+    } catch (e) {
+      print('⚠️ Limited device info access: $e');
     }
   }
 
@@ -288,7 +364,7 @@ class _LoginscreenState extends State<Loginscreen> {
           'VMETID':
               'MIUzptHJWQqh0+/ytZy1/Hcjc8DfNH6OdiYJYg8lXd4nQLHlsRlsZ/k6G1uj/hY5w96n9dAg032gjp9ygMGCtg0YSlEgpXVPCWi79/pGZz6Motai4bYdua29xKvWVn8X0U87I/ZG6NCwYSCAdk9/6jYc75hCyd2z59F0GYorGNPLmkhGodpfabxRr8zheVXRnG9Ko2I7/V2Y83imaiRpF7k+g43Vd9XLFPVsRukcfkxWatuW336BEKeuX6Ts9JkY0Y9BKv4IdlHkOKwgxMf22zBV7IoJkL1XlGJlVCTsvchYN9Lx8NXQksxK8UPPMbU1hCRY4Jbr0/IIfntxd4vsng==',
         },
-        body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
+        body: jsonEncode(<String, dynamic>{"deviceid": _deviceId.toString()}),
       );
 
       setState(() {
@@ -592,7 +668,7 @@ class _LoginscreenState extends State<Loginscreen> {
                                     ),
                                     SizedBox(height: 10),
                                     Text(
-                                      "$_imei",
+                                      "$_deviceId",
                                       style: TextStyle(
                                           fontSize: screenWidth * 0.05,
                                           color: Colors.grey[700]),

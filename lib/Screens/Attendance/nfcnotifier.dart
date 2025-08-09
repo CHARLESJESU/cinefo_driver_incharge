@@ -6,6 +6,12 @@ import 'package:nfc_manager/nfc_manager.dart';
 import 'package:production/Screens/Attendance/encryption.dart';
 
 class NFCNotifier extends ChangeNotifier {
+  void clearNfcData() {
+    _message = "";
+    _vcid = null;
+    notifyListeners();
+  }
+
   bool _isProcessing = false;
   String _message = "";
   bool get isProcessing => _isProcessing;
@@ -65,16 +71,22 @@ class NFCNotifier extends ChangeNotifier {
 
     String? decodedText;
 
-    if (nfcData.containsKey('ndef')) {
+    if (nfcData.containsKey('ndef') &&
+        nfcData['ndef'] != null &&
+        nfcData['ndef']['cachedMessage'] != null &&
+        nfcData['ndef']['cachedMessage']['records'] != null &&
+        nfcData['ndef']['cachedMessage']['records'].isNotEmpty &&
+        nfcData['ndef']['cachedMessage']['records'][0]['payload'] != null) {
       List<int> payload =
-          nfcData['ndef']['cachedMessage']?['records']?[0]['payload'];
-
+          nfcData['ndef']['cachedMessage']['records'][0]['payload'];
       if (payload.isNotEmpty) {
         int languageCodeLength = payload[0] & 0x3F;
         decodedText =
             String.fromCharCodes(payload.sublist(languageCodeLength + 1));
       }
-    } else if (nfcData.containsKey('mifareultralight')) {
+    } else if (nfcData.containsKey('mifareultralight') &&
+        nfcData['mifareultralight'] != null &&
+        nfcData['mifareultralight']['data'] != null) {
       List<int> mifareData = nfcData['mifareultralight']['data'];
       decodedText = String.fromCharCodes(mifareData);
     }

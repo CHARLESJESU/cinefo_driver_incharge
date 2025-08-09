@@ -1,14 +1,14 @@
 import 'dart:convert';
-import 'package:flutter_device_imei/flutter_device_imei.dart';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:production/variables.dart';
 
 class HomeScreenService {
   // Private variables
-  String _imei = 'Unknown';
+  String _deviceId = 'Unknown';
   bool _isLoading = false;
   bool _screenLoading = false;
   String? _selectedShift;
@@ -17,7 +17,8 @@ class HomeScreenService {
   List<Map<String, dynamic>> _shiftList = [];
 
   // Getters
-  String get imei => _imei;
+  String get deviceId => _deviceId;
+  String get imei => _deviceId; // For backward compatibility
   bool get isLoading => _isLoading;
   bool get screenLoading => _screenLoading;
   String? get selectedShift => _selectedShift;
@@ -34,31 +35,73 @@ class HomeScreenService {
   set selectedShiftId(int? value) => _selectedShiftId = value;
   set selectedCallsheetName(String value) => _selectedCallsheetName = value;
 
-  // IMEI related methods
+  // Device ID related methods
   Future<void> requestPermission() async {
-    var status = await Permission.phone.status;
-    if (!status.isGranted) {
-      await Permission.phone.request();
+    // For device_info_plus, we don't need special permissions for Android ID
+    // Just check if we can access basic device info
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      await deviceInfo.androidInfo; // Test access
+      print('✅ Device info access available');
+    } catch (e) {
+      print('⚠️ Limited device info access: $e');
     }
   }
 
   Future<void> initImei() async {
     await requestPermission();
-    String? imei;
+    String deviceId = 'Unknown';
     try {
-      imei = await FlutterDeviceImei.instance.getIMEI();
-    } catch (e) {
-      imei = 'Failed to get IMEI: $e';
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id; // Android ID
+        print('🤖 Android Device ID: $deviceId');
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? 'iOS-Unknown';
+        print('🍎 iOS Device ID: $deviceId');
+      } else {
+        deviceId = 'Platform-Not-Supported';
+        print('❌ Unsupported platform');
+      }
+
+      // Ensure we have a valid device ID
+      if (deviceId.isEmpty) {
+        deviceId = 'Empty-Device-ID-${DateTime.now().millisecondsSinceEpoch}';
+        print('⚠️ Device ID was empty, using fallback');
+      }
+    } catch (e, stackTrace) {
+      deviceId = 'Error-${DateTime.now().millisecondsSinceEpoch}';
+      print('❌ Device ID error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+
+      // Try a fallback approach
+      try {
+        if (Platform.isAndroid) {
+          DeviceInfoPlugin basicInfo = DeviceInfoPlugin();
+          AndroidDeviceInfo basicAndroidInfo = await basicInfo.androidInfo;
+          String fallbackId =
+              '${basicAndroidInfo.brand}-${basicAndroidInfo.model}-${DateTime.now().millisecondsSinceEpoch}';
+          deviceId = fallbackId;
+          print('🔄 Using fallback Android ID: $deviceId');
+        }
+      } catch (fallbackError) {
+        print('❌ Fallback also failed: $fallbackError');
+        deviceId = 'Fallback-Failed-${DateTime.now().millisecondsSinceEpoch}';
+      }
     }
-    _imei = imei ?? 'Unavailable';
+    _deviceId = deviceId;
   }
 
   Future<void> initializeDevice() async {
     await initImei();
-    if (_imei != 'Unavailable' && !_imei.startsWith('Failed')) {
+    if (_deviceId != 'Unavailable' && !_deviceId.startsWith('Failed')) {
       await passDeviceId();
     } else {
-      print('IMEI not available: $_imei');
+      print('Device ID not available: $_deviceId');
     }
   }
 
@@ -71,7 +114,7 @@ class HomeScreenService {
         'VMETID':
             'MIUzptHJWQqh0+/ytZy1/Hcjc8DfNH6OdiYJYg8lXd4nQLHlsRlsZ/k6G1uj/hY5w96n9dAg032gjp9ygMGCtg0YSlEgpXVPCWi79/pGZz6Motai4bYdua29xKvWVn8X0U87I/ZG6NCwYSCAdk9/6jYc75hCyd2z59F0GYorGNPLmkhGodpfabxRr8zheVXRnG9Ko2I7/V2Y83imaiRpF7k+g43Vd9XLFPVsRukcfkxWatuW336BEKeuX6Ts9JkY0Y9BKv4IdlHkOKwgxMf22zBV7IoJkL1XlGJlVCTsvchYN9Lx8NXQksxK8UPPMbU1hCRY4Jbr0/IIfntxd4vsng==',
       },
-      body: jsonEncode(<String, dynamic>{"deviceid": _imei.toString()}),
+      body: jsonEncode(<String, dynamic>{"deviceid": _deviceId.toString()}),
     );
 
     if (response.statusCode == 200) {
