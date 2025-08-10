@@ -559,9 +559,14 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                 _buildDetailRow(
                                                     'VCID', item['vcid']),
                                                 _buildDetailRow(
-                                                    'Marked At',
-                                                    _formatDate(
-                                                        item['marked_at'])),
+                                                  'Marked At',
+                                                  _formatDate(
+                                                      item['marked_at']),
+                                                ),
+                                                _buildDetailRow(
+                                                  'attendance_status',
+                                                  item['attendance_status'],
+                                                ),
                                               ],
                                   ),
                                 ),

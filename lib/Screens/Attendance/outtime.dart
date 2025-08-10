@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -16,6 +18,52 @@ class OuttimeScreen extends StatefulWidget {
 }
 
 class _OuttimeScreenState extends State<OuttimeScreen> {
+  late NFCNotifier nfcNotifier;
+  late VoidCallback nfcListener;
+  // Save Outtime NFC scan to SQLite with attendance_status = '2'
+  Future<void> saveOuttimeToSQLite(String vcid) async {
+    final dbPath = await getDatabasesPath();
+    final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+    // You can add more fields as needed
+    // Parse message for name, designation, code, unionName like dailogei.dart
+    final nfcNotifier = Provider.of<NFCNotifier>(context, listen: false);
+    final message = nfcNotifier.message ?? '';
+    Map<String, dynamic> data = {
+      'name': '',
+      'designation': '',
+      'code': '',
+      'unionName': '',
+      'vcid': vcid,
+      'marked_at': DateTime.now().toIso8601String(),
+      'latitude': '',
+      'longitude': '',
+      'location': '',
+      'attendance_status': '2',
+    };
+    final lines = message.split('\n');
+    for (final line in lines) {
+      if (line.startsWith('Name:'))
+        data['name'] = line.replaceFirst('Name:', '').trim();
+      if (line.startsWith('Designation:'))
+        data['designation'] = line.replaceFirst('Designation:', '').trim();
+      if (line.startsWith('Code:'))
+        data['code'] = line.replaceFirst('Code:', '').trim();
+      if (line.startsWith('Union Name:'))
+        data['unionName'] = line.replaceFirst('Union Name:', '').trim();
+    }
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      data['latitude'] = position.latitude.toString();
+      data['longitude'] = position.longitude.toString();
+    } catch (e) {
+      // Location not available, leave as empty
+    }
+    await db.insert('intime', data);
+    await db.close();
+    debugPrint('Outtime NFC saved to SQLite with attendance_status=2: $vcid');
+  }
+
   bool isLoading = false;
   List<Map<String, dynamic>> configs = [];
   String errorMessage = "";
@@ -24,18 +72,25 @@ class _OuttimeScreenState extends State<OuttimeScreen> {
   void initState() {
     super.initState();
 
-    final nfcNotifier = Provider.of<NFCNotifier>(context, listen: false);
-
+    nfcNotifier = Provider.of<NFCNotifier>(context, listen: false);
+    nfcListener = () async {
+      final vcid = nfcNotifier.vcid;
+      if (vcid != null && vcid.isNotEmpty) {
+        // Store NFC scan in SQLite with attendance_status = 2
+        await saveOuttimeToSQLite(vcid);
+        updateDebugMessage('Outtime NFC stored locally.');
+        // Do NOT post immediately. The background sync service will handle posting.
+      }
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nfcNotifier.startNFCOperation(nfcOperation: NFCOperation.read);
-
-      nfcNotifier.addListener(() {
-        final vcid = nfcNotifier.vcid;
-        if (vcid != null && vcid.isNotEmpty) {
-          onCardDetected();
-        }
-      });
+      nfcNotifier.addListener(nfcListener);
     });
+    @override
+    void dispose() {
+      nfcNotifier.removeListener(nfcListener);
+      super.dispose();
+    }
   }
 
   String debugMessage = '';

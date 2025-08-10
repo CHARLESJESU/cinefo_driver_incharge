@@ -62,6 +62,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     final dbPath = await getDatabasesPath();
     final db = await openDatabase(path.join(dbPath, 'production_login.db'));
     // Drop the old table if it exists to ensure schema is correct
+    await db.execute('DROP TABLE IF EXISTS intime');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS intime (
@@ -74,7 +75,8 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         marked_at TEXT,
         latitude TEXT,
         longitude TEXT,
-        location TEXT
+        location TEXT,
+        attendance_status TEXT
       )
     ''');
     await db.insert('intime', data);
@@ -189,6 +191,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         'latitude': position.latitude.toString(),
         'longitude': position.longitude.toString(),
         'location': location ?? "Unknown",
+        'attendance_status': '1'
       };
       final lines = widget.message.split('\n');
       for (final line in lines) {
@@ -283,8 +286,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   }
 }
 
-// --- At app startup, call this to start background sync ---
-// IntimeSyncService().startSync(); // <-- Call this in your main() or app init, not here!
 class IntimeSyncService {
   Timer? _timer;
   bool _isPosting = false;
@@ -303,6 +304,7 @@ class IntimeSyncService {
     print('IntimeSyncService: Timer fired, checking for rows...');
     if (_isPosting) return;
     _isPosting = true;
+    Database? db;
     try {
       var connectivityResult = await Connectivity().checkConnectivity();
       print('IntimeSyncService: Connectivity: $connectivityResult');
@@ -312,7 +314,7 @@ class IntimeSyncService {
         return;
       }
       final dbPath = await getDatabasesPath();
-      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      db = await openDatabase(path.join(dbPath, 'production_login.db'));
       final List<Map<String, dynamic>> rows = await db.query(
         'intime',
         orderBy: 'id ASC', // FIFO
@@ -347,7 +349,7 @@ class IntimeSyncService {
           },
           "latitude": row['latitude'],
           "longitude": row['longitude'],
-          "attendanceStatus": "1",
+          "attendanceStatus": row['attendance_status'],
           "location": row['location'],
         });
         final response = await http.post(
@@ -364,7 +366,11 @@ class IntimeSyncService {
         if (response.statusCode == 200) {
           print(
               'IntimeSyncService: Deleting row id=\\${row['id']} after successful POST.');
-          await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+          try {
+            await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+          } catch (e) {
+            print('❌ Error deleting record: $e');
+          }
         } else {
           print(
               'IntimeSyncService: POST failed for row id=\\${row['id']}, stopping sync this cycle.');
@@ -372,10 +378,12 @@ class IntimeSyncService {
           break;
         }
       }
-      await db.close();
     } catch (e) {
       print('Sync error: $e');
     } finally {
+      if (db != null && db.isOpen) {
+        await db.close();
+      }
       _isPosting = false;
     }
   }
