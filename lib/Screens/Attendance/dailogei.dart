@@ -11,6 +11,7 @@ import 'package:production/Screens/Attendance/nfcnotifier.dart';
 import 'package:production/variables.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 String transformVcidToImageUrl(String vcid) {
   final transformedVcid = vcid
@@ -161,6 +162,8 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     }
   }
 
+// --- Background FIFO sync service ---
+
   Future<void> markattendance(String vcid) async {
     setState(() {
       first = true;
@@ -200,91 +203,13 @@ class _CountdownDialogState extends State<_CountdownDialog> {
           intimeData['unionName'] = line.replaceFirst('Union Name:', '').trim();
       }
 
-      // 2. Save to SQLite first
+      // 2. Save to SQLite only (do not post here)
       await saveIntimeToSQLite(intimeData);
 
-      // 3. Fetch the just-saved row (latest by marked_at)
-      final dbPath = await getDatabasesPath();
-      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
-      final List<Map<String, dynamic>> rows = await db.query(
-        'intime',
-        orderBy: 'marked_at DESC',
-        limit: 1,
-      );
-      await db.close();
-
-      if (rows.isNotEmpty) {
-        final row = rows.first;
-
-        // 4. Prepare the requestBody from the row
-        final requestBody = jsonEncode({
-          "data": row['vcid'],
-          "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
-          "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
-          "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
-          "doubing": {
-            "mainCharacter": 0,
-            "smallCharacter": 0,
-            "bitCharacter": 0,
-            "singlebitCharacter": 0,
-            "group": 0,
-            "fight": 0,
-            "singlebitCharacterOtherLanguage": 0,
-            "mainCharacterOtherLanguage": 0,
-            "smallCharacterOtherLanguage": 0,
-            "bitCharacterOtherLanguage": 0,
-            "groupOtherLanguage": 0,
-            "fightOtherLanguage": 0,
-            "voicetest": 0,
-            "correction": 0,
-            "leadRole": 0,
-            "secondLeadRole": 0,
-            "leadRoleOtherLanguage": 0,
-            "secondLeadRoleOtherLanguage": 0
-          },
-          "latitude": row['latitude'],
-          "longitude": row['longitude'],
-          "attendanceStatus": "1",
-          "location": row['location'],
-        });
-
-        // 5. POST to API
-        final response = await http.post(
-          processSessionRequest,
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'VMETID':
-                "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
-            'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-          },
-          body: requestBody,
-        );
-
-        setState(() {
-          first = false;
-        });
-        if (response.statusCode == 200) {
-          final result = jsonDecode(response.body);
-          final msg = result['message'];
-          final err = result['errordescription'];
-          print(result);
-          print(row['vcid']);
-
-          if (msg == "Success") {
-            updateDebugMessage("Attendance marked successfully.");
-            setState(() => responseMessage = "Attendance marked successfully.");
-          } else {
-            updateDebugMessage("Attendance failed: $err");
-            setState(() => responseMessage = "Attendance failed: $err");
-          }
-        } else {
-          setState(
-              () => responseMessage = "Server error: ${response.statusCode}");
-          updateDebugMessage("Server error: ${response.statusCode}");
-          print(requestBody);
-          print(loginresponsebody?['vsid']);
-        }
-      }
+      setState(() {
+        first = false;
+        responseMessage = "Attendance stored locally.";
+      });
     } catch (e) {
       print('Error in markattendance: $e');
     } finally {
@@ -355,5 +280,103 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         ],
       ),
     );
+  }
+}
+
+// --- At app startup, call this to start background sync ---
+// IntimeSyncService().startSync(); // <-- Call this in your main() or app init, not here!
+class IntimeSyncService {
+  Timer? _timer;
+  bool _isPosting = false;
+
+  void startSync() {
+    print('IntimeSyncService: startSync() called. Timer started.');
+    _timer = Timer.periodic(
+        const Duration(seconds: 20), (_) => _tryPostIntimeRows());
+  }
+
+  void stopSync() {
+    _timer?.cancel();
+  }
+
+  Future<void> _tryPostIntimeRows() async {
+    print('IntimeSyncService: Timer fired, checking for rows...');
+    if (_isPosting) return;
+    _isPosting = true;
+    try {
+      var connectivityResult = await Connectivity().checkConnectivity();
+      print('IntimeSyncService: Connectivity: $connectivityResult');
+      if (connectivityResult == ConnectivityResult.none) {
+        print('IntimeSyncService: No internet, skipping this cycle.');
+        _isPosting = false;
+        return;
+      }
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      final List<Map<String, dynamic>> rows = await db.query(
+        'intime',
+        orderBy: 'id ASC', // FIFO
+      );
+      print('IntimeSyncService: Found \\${rows.length} rows to sync.');
+      for (final row in rows) {
+        print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
+        final requestBody = jsonEncode({
+          "data": row['vcid'],
+          "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
+          "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
+          "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
+          "doubing": {
+            "mainCharacter": 0,
+            "smallCharacter": 0,
+            "bitCharacter": 0,
+            "singlebitCharacter": 0,
+            "group": 0,
+            "fight": 0,
+            "singlebitCharacterOtherLanguage": 0,
+            "mainCharacterOtherLanguage": 0,
+            "smallCharacterOtherLanguage": 0,
+            "bitCharacterOtherLanguage": 0,
+            "groupOtherLanguage": 0,
+            "fightOtherLanguage": 0,
+            "voicetest": 0,
+            "correction": 0,
+            "leadRole": 0,
+            "secondLeadRole": 0,
+            "leadRoleOtherLanguage": 0,
+            "secondLeadRoleOtherLanguage": 0
+          },
+          "latitude": row['latitude'],
+          "longitude": row['longitude'],
+          "attendanceStatus": "1",
+          "location": row['location'],
+        });
+        final response = await http.post(
+          processSessionRequest,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'VMETID':
+                "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
+            'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+          },
+          body: requestBody,
+        );
+        print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
+        if (response.statusCode == 200) {
+          print(
+              'IntimeSyncService: Deleting row id=\\${row['id']} after successful POST.');
+          await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+        } else {
+          print(
+              'IntimeSyncService: POST failed for row id=\\${row['id']}, stopping sync this cycle.');
+          // Stop on first failure to preserve FIFO
+          break;
+        }
+      }
+      await db.close();
+    } catch (e) {
+      print('Sync error: $e');
+    } finally {
+      _isPosting = false;
+    }
   }
 }
