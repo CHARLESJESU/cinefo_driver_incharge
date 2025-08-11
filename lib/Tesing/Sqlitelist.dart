@@ -496,6 +496,18 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                 item['shiftId']?.toString()),
                                             _buildDetailRow('Latitude',
                                                 item['latitude']?.toString()),
+                                            _buildDetailRow(
+                                                'Callsheet ID',
+                                                item['callSheetId']
+                                                    ?.toString()),
+                                            _buildDetailRow('MovieName',
+                                                item['MovieName']?.toString()),
+                                            _buildDetailRow('Shift',
+                                                item['shift']?.toString()),
+                                            _buildDetailRow(
+                                                'Callsheet No',
+                                                item['callSheetNo']
+                                                    ?.toString()),
                                             _buildDetailRow('Longitude',
                                                 item['longitude']?.toString()),
                                             _buildDetailRow('Project ID',

@@ -100,46 +100,197 @@ class _ReportsState extends State<Reports> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("Reports"),
-        backgroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : callSheets.isEmpty
-              ? const Center(child: Text("No CallSheets Available"))
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-                      child: Text(
-                        "CallSheets Overview",
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w300),
+    return Stack(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF2B5682),
+                Color(0xFF24426B),
+              ],
+            ),
+          ),
+        ),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            title: const Text(
+              "Reports",
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // SizedBox(height: 20),
+                  // Header section
+                  // Container(
+                  //   padding: EdgeInsets.all(20),
+                  //   decoration: BoxDecoration(
+                  //     color: Color(0xFF355E8C),
+                  //     borderRadius: BorderRadius.circular(20),
+                  //     boxShadow: [
+                  //       BoxShadow(
+                  //         color: Colors.black.withOpacity(0.2),
+                  //         blurRadius: 8,
+                  //         offset: Offset(0, 4),
+                  //       ),
+                  //     ],
+                  //   ),
+                  //   child: Row(
+                  //     children: [
+                  //       Container(
+                  //         width: 60,
+                  //         height: 60,
+                  //         decoration: BoxDecoration(
+                  //           color: Colors.white.withOpacity(0.2),
+                  //           borderRadius: BorderRadius.circular(30),
+                  //         ),
+                  //         child: Icon(
+                  //           Icons.assessment,
+                  //           color: Colors.white,
+                  //           size: 30,
+                  //         ),
+                  //       ),
+                  //       SizedBox(width: 15),
+                  //       Expanded(
+                  //         child: Column(
+                  //           crossAxisAlignment: CrossAxisAlignment.start,
+                  //           children: [
+                  //             Text(
+                  //               'CallSheets Reports',
+                  //               style: TextStyle(
+                  //                 color: Colors.white,
+                  //                 fontSize: 18,
+                  //                 fontWeight: FontWeight.bold,
+                  //               ),
+                  //             ),
+                  //             SizedBox(height: 4),
+                  //             Text(
+                  //               'View all callsheet reports',
+                  //               style: TextStyle(
+                  //                 color: Colors.white70,
+                  //                 fontSize: 14,
+                  //               ),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
+                  SizedBox(height: 30),
+                  // Reports list section
+                  if (isLoading)
+                    Center(
+                      child: Container(
+                        padding: EdgeInsets.all(40),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF2B5682),
+                        ),
+                      ),
+                    )
+                  else if (callSheets.isEmpty)
+                    Center(
+                      child: Container(
+                        padding: EdgeInsets.all(40),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.folder_open,
+                              size: 60,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              "No CallSheets Available",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CallSheets Overview',
+                            style: TextStyle(
+                              color: Color(0xFF2B5682),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          ...callSheets.map((callsheet) => containerBox(
+                                context,
+                                callsheet['callSheetNo'] ?? "N/A",
+                                callsheet['callsheetStatus'] ?? "N/A",
+                                callsheet['location'] ?? "N/A",
+                                callsheet['date'],
+                              )),
+                        ],
                       ),
                     ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: callSheets.length,
-                        itemBuilder: (context, index) {
-                          final callsheet = callSheets[index];
-                          return containerBox(
-                            context,
-                            callsheet['callSheetNo'] ?? "N/A",
-                            callsheet['callsheetStatus'] ?? "N/A",
-                            callsheet['location'] ?? "N/A",
-                            callsheet['date'],
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -160,88 +311,133 @@ class _ReportsState extends State<Reports> {
       }
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      Reportdetails(projectId: projectId.toString())));
-        },
-        child: LayoutBuilder(builder: (context, constraints) {
-          return Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(2, 4),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) =>
+                    Reportdetails(projectId: projectId.toString())));
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
             ),
-            child: Column(
+          ],
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with gradient background
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF4A6FA5).withOpacity(0.1),
+                    Color(0xFF2E4B73).withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF2B5682),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(callsheetStatus).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      callsheetStatus,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(callsheetStatus),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12),
+            // Location and Date
+            Row(
               children: [
-                // Gradient header
-                Container(
-                  height: 50,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFFFFFFFF),
-                        Color.fromRGBO(238, 232, 255, 0.8),
-                        Color.fromRGBO(236, 211, 249, 0.8),
-                        Color(0xFFFDD9FF),
-                        Color.fromRGBO(255, 255, 255, 0.8),
-                      ],
+                Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                // Title & location
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12.0, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text(location,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
-                    ],
-                  ),
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: Colors.grey[600],
                 ),
-                Divider(color: Colors.grey[300]),
-                // Status and Date
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-                  child: Row(
-                    children: [
-                      Text("Status: $callsheetStatus",
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
-                      const Spacer(),
-                      Text(
-                        formattedDate,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                    ],
+                SizedBox(width: 4),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF355E8C),
                   ),
                 ),
               ],
             ),
-          );
-        }),
+          ],
+        ),
       ),
     );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'open':
+        return Colors.green;
+      case 'closed':
+      case 'completed':
+        return Colors.blue;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
   }
 }

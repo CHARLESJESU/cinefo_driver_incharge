@@ -62,7 +62,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     final dbPath = await getDatabasesPath();
     final db = await openDatabase(path.join(dbPath, 'production_login.db'));
     // Drop the old table if it exists to ensure schema is correct
-    await db.execute('DROP TABLE IF EXISTS intime');
+    // await db.execute('DROP TABLE IF EXISTS intime');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS intime (

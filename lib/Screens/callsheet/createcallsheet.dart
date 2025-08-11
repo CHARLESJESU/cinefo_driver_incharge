@@ -30,10 +30,40 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     return openDatabase(
       dbPath,
       version: 1,
+      onOpen: (db) async {
+        // Drop the existing callsheet table if it exists
+        // await db.execute('DROP TABLE IF EXISTS callsheet');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS callsheet (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            callSheetId INTEGER,
+            callSheetNo TEXT,
+            MovieName TEXT,
+            name TEXT,
+            shiftId INTEGER,
+            latitude REAL,
+            longitude REAL,
+            projectId TEXT,
+            vmid TEXT,
+            vpid TEXT,
+            vpoid TEXT,
+            vbpid TEXT,
+            productionTypeid INTEGER,
+            location TEXT,
+            locationType TEXT,
+            locationTypeId INTEGER,
+            created_at TEXT
+          )
+        ''');
+      },
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS callsheet (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            callSheetId INTEGER,
+            callSheetNo TEXT,
+            MovieName TEXT,
+            Shift TEXT,
             name TEXT,
             shiftId INTEGER,
             latitude REAL,
@@ -56,25 +86,6 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
 
   Future<void> saveCallsheetToSQLite(Map<String, dynamic> data) async {
     final db = await _callsheetDb;
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS callsheet (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        shiftId INTEGER,
-        latitude REAL,
-        longitude REAL,
-        projectId TEXT,
-        vmid TEXT,
-        vpid TEXT,
-        vpoid TEXT,
-        vbpid TEXT,
-        productionTypeid INTEGER,
-        location TEXT,
-        locationType TEXT,
-        locationTypeId INTEGER,
-        created_at TEXT
-      )
-    ''');
     await db.insert('callsheet', data,
         conflictAlgorithm: ConflictAlgorithm.replace);
     await db.close();
@@ -305,7 +316,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     setState(() {
       _isLoading = false;
     });
-
+    print(response.body + "❌❌❌❌❌❌❌❌❌");
     print('Request Payload:');
     payload.forEach((key, value) {
       print('$key: $value');
@@ -318,8 +329,32 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
 
       createCallSheetresponse1 = json.decode(response.body);
       if (createCallSheetresponse1!['message'] == "Success") {
+        // Add callSheetId and callSheetNo from response to payload before saving to SQLite
         if (_saveOffline) {
-          await saveCallsheetToSQLite(payload);
+          final responseData = createCallSheetresponse1!['responseData'];
+          final int? callSheetId =
+              responseData != null && responseData['callSheetId'] != null
+                  ? int.tryParse(responseData['callSheetId'].toString())
+                  : null;
+          final String? callSheetNo =
+              responseData != null && responseData['callSheetNo'] != null
+                  ? responseData['callSheetNo'].toString()
+                  : null;
+          final String? MovieName =
+              responseData != null && responseData['projectName'] != null
+                  ? responseData['projectName'].toString()
+                  : null;
+          final String? Shift =
+              responseData != null && responseData['shift'] != null
+                  ? responseData['shift'].toString()
+                  : null;
+          final Map<String, dynamic> sqlitePayload =
+              Map<String, dynamic>.from(payload);
+          sqlitePayload['callSheetId'] = callSheetId;
+          sqlitePayload['callSheetNo'] = callSheetNo;
+          sqlitePayload['projectName'] = MovieName;
+          sqlitePayload['shift'] = Shift;
+          await saveCallsheetToSQLite(sqlitePayload);
         }
         showsuccessPopUp(context, "created call sheet successfully", () {
           Navigator.pop(context);

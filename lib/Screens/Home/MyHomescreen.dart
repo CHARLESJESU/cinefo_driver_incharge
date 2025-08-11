@@ -3,6 +3,7 @@ import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
+import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
 
 class MyHomescreen extends StatefulWidget {
   const MyHomescreen({super.key});
@@ -454,45 +455,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                   ),
                   SizedBox(height: 20), // Space after container 2
                   // Offline call sheet section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Container(
-                      margin: EdgeInsets.only(top: 10),
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Online call sheet',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2B5682),
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          ..._callsheetList.map((item) => _buildListItem(
-                                item['name']?.toString() ?? '',
-                                item['locationType']?.toString() ?? '',
-                                (item['created_at']?.toString() ?? '')
-                                    .split('T')
-                                    .first,
-                              )),
-                        ],
-                      ),
-                    ),
-                  ),
+
                   if (_callsheetList.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -523,11 +486,12 @@ class _MyHomescreenState extends State<MyHomescreen> {
                             ),
                             SizedBox(height: 10),
                             ..._callsheetList.map((item) => _buildListItem(
-                                  item['name']?.toString() ?? '',
+                                  item['callSheetNo']?.toString() ?? '',
                                   item['locationType']?.toString() ?? '',
                                   (item['created_at']?.toString() ?? '')
                                       .split('T')
                                       .first,
+                                  callsheetData: item,
                                 )),
                           ],
                         ),
@@ -545,62 +509,76 @@ class _MyHomescreenState extends State<MyHomescreen> {
   // Helper method to get initial 3 list items
 
   // Helper method to build individual list item
-  Widget _buildListItem(String code, String timing, String date) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Left side - Code and timing
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  code,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2B5682),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  timing,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+  Widget _buildListItem(String code, String timing, String date,
+      {Map<String, dynamic>? callsheetData}) {
+    return GestureDetector(
+      onTap: () {
+        if (callsheetData != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  OfflineCallsheetDetailScreen(callsheet: callsheetData),
             ),
-          ),
-          // Right side - Date
-          Expanded(
-            flex: 1,
-            child: Text(
-              date,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF355E8C),
+          );
+        }
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Left side - Code and timing
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2B5682),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    timing,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.right,
             ),
-          ),
-        ],
+            // Right side - Date
+            Expanded(
+              flex: 1,
+              child: Text(
+                date,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF355E8C),
+                ),
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
