@@ -47,6 +47,17 @@ class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
   }
 
   @override
+  void dispose() {
+    // Stop NFC when leaving the screen
+    try {
+      Provider.of<NFCNotifier>(context, listen: false).dispose();
+    } catch (e) {
+      print('Error disposing NFC: $e');
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -88,7 +99,16 @@ class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
                         showResultDialogi(
                           context,
                           currentMessage,
-                          () {},
+                          () {
+                            // Restart NFC listening after dialog closes
+                            Future.delayed(Duration(milliseconds: 500), () {
+                              if (mounted) {
+                                Provider.of<NFCNotifier>(context, listen: false)
+                                    .startNFCOperation(
+                                        nfcOperation: NFCOperation.read);
+                              }
+                            });
+                          },
                           currentVcid.toString(),
                           '2', // Out-time attendance status
                         );

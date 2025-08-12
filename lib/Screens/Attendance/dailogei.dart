@@ -5,10 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:production/Screens/Attendance/intime.dart';
-import 'package:production/Screens/Attendance/nfcnotifier.dart';
 import 'package:production/variables.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -227,15 +224,8 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         _timer?.cancel();
         await markattendance(widget.vcid);
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChangeNotifierProvider(
-              create: (_) => NFCNotifier(),
-              child: IntimeScreen(),
-            ),
-          ),
-        );
+        // Just close the dialog without navigating
+        Navigator.of(context).pop();
         widget.onDismissed();
       } else {
         setState(() {
