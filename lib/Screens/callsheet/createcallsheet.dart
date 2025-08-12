@@ -32,7 +32,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
       version: 2, // Increment version to trigger onUpgrade
       onOpen: (db) async {
         // Drop the existing callsheet table if it exists and recreate with all columns
-        await db.execute('DROP TABLE IF EXISTS callsheet');
+        // await db.execute('DROP TABLE IF EXISTS callsheet');
         await db.execute('''
           CREATE TABLE IF NOT EXISTS callsheet (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,7 +86,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // Drop and recreate table with all required columns
-        await db.execute('DROP TABLE IF EXISTS callsheet');
+        // await db.execute('DROP TABLE IF EXISTS callsheet');
         await db.execute('''
           CREATE TABLE callsheet (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,6 +141,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   TextEditingController _nameController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
   String? selectedShift; // No default value
+  DateTime? selectedDate; // Selected date for the callsheet
 
   List<String> shiftTimes = [];
   int selectedLocationType = 1;
@@ -309,6 +310,20 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     }
   }
 
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+      });
+    }
+  }
+
   Future<Position> _determinePosition() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -324,8 +339,11 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   }
 
   Future<void> createCallSheet() async {
-    if (_nameController.text.isEmpty || _locationController.text.isEmpty) {
-      showmessage(context, "Please fill in all required fields.", "ok");
+    if (_nameController.text.isEmpty ||
+        _locationController.text.isEmpty ||
+        selectedDate == null) {
+      showmessage(
+          context, "Please fill in all required fields including date.", "ok");
       return;
     }
 
@@ -346,7 +364,8 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
       "location": _locationController.text,
       "locationType": getLocationTypeLabel(selectedLocationType),
       "locationTypeId": selectedLocationType,
-      "created_at": DateTime.now().toIso8601String(),
+      "created_at":
+          selectedDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
     final response = await http.post(
       processSessionRequest,
@@ -614,7 +633,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
                                       child: Container(
                                         width:
                                             MediaQuery.of(context).size.width,
-                                        height: 440,
+                                        height: 530,
                                         decoration: BoxDecoration(
                                             borderRadius:
                                                 BorderRadius.circular(20),
@@ -687,6 +706,60 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
                                                       }
                                                     },
                                                   )),
+                                              SizedBox(height: 10),
+                                              Text(
+                                                'Date',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16),
+                                              ),
+                                              SizedBox(height: 6),
+                                              Container(
+                                                width: MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                height: 50,
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 10),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[200],
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: InkWell(
+                                                  onTap: _selectDate,
+                                                  child: Container(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceBetween,
+                                                      children: [
+                                                        Text(
+                                                          selectedDate != null
+                                                              ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                                              : "Select Date",
+                                                          style: TextStyle(
+                                                            color: selectedDate !=
+                                                                    null
+                                                                ? Colors.black
+                                                                : Colors
+                                                                    .grey[600],
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                        Icon(
+                                                          Icons.calendar_today,
+                                                          color:
+                                                              Colors.grey[600],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(height: 10),
                                               Text(
                                                 'Callsheet name',
                                                 style: TextStyle(

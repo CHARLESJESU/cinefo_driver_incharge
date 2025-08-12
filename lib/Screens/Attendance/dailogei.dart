@@ -87,7 +87,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   bool _isloading = false;
   bool _attendanceMarked = false;
   String debugMessage = '';
-  int _secondsLeft = 2;
   Timer? _timer;
   bool first = false;
   String responseMessage = "";
@@ -105,10 +104,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     // _syncOfflineData();
     _getCurrentLocation();
     if (widget.message != "Please Enable NFC From Settings") {
-      _startCountdown();
-      print('Passing vcid to dialog: $vcid');
-    }
-    if (widget.message != "Please Enable NFC From Settings") {
+      print('Passing vcid to dialog: ${widget.vcid}');
       markattendance(widget.vcid); // <-- auto mark attendance
     }
   }
@@ -210,29 +206,20 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         first = false;
         responseMessage = "Attendance stored locally.";
       });
+
+      // Close dialog immediately after showing success message
+      Future.delayed(Duration(milliseconds: 800), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onDismissed();
+        }
+      });
     } catch (e) {
       print('Error in markattendance: $e');
     } finally {
       if (!mounted) return;
       setState(() => _isloading = false);
     }
-  }
-
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      if (_secondsLeft == 0) {
-        _timer?.cancel();
-        await markattendance(widget.vcid);
-
-        // Just close the dialog without navigating
-        Navigator.of(context).pop();
-        widget.onDismissed();
-      } else {
-        setState(() {
-          _secondsLeft--;
-        });
-      }
-    });
   }
 
   @override
@@ -285,7 +272,7 @@ class IntimeSyncService {
   void startSync() {
     print('IntimeSyncService: startSync() called. Timer started.');
     _timer = Timer.periodic(
-        const Duration(seconds: 120), (_) => _tryPostIntimeRows());
+        const Duration(seconds: 20), (_) => _tryPostIntimeRows());
   }
 
   void stopSync() {
@@ -319,26 +306,7 @@ class IntimeSyncService {
           "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
           "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
           "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
-          "doubing": {
-            "mainCharacter": 0,
-            "smallCharacter": 0,
-            "bitCharacter": 0,
-            "singlebitCharacter": 0,
-            "group": 0,
-            "fight": 0,
-            "singlebitCharacterOtherLanguage": 0,
-            "mainCharacterOtherLanguage": 0,
-            "smallCharacterOtherLanguage": 0,
-            "bitCharacterOtherLanguage": 0,
-            "groupOtherLanguage": 0,
-            "fightOtherLanguage": 0,
-            "voicetest": 0,
-            "correction": 0,
-            "leadRole": 0,
-            "secondLeadRole": 0,
-            "leadRoleOtherLanguage": 0,
-            "secondLeadRoleOtherLanguage": 0
-          },
+          "doubing": {},
           "latitude": row['latitude'],
           "longitude": row['longitude'],
           "attendanceStatus": row['attendance_status'],
@@ -354,6 +322,22 @@ class IntimeSyncService {
           },
           body: requestBody,
         );
+
+        // Print response body in chunks to handle large responses
+        print('📊 Response body length: ${response.body.length}');
+        if (response.body.isNotEmpty) {
+          const int chunkSize = 800; // Print in chunks of 800 characters
+          for (int i = 0; i < response.body.length; i += chunkSize) {
+            int end = (i + chunkSize < response.body.length)
+                ? i + chunkSize
+                : response.body.length;
+            print(
+                '📊 Chunk ${(i / chunkSize).floor() + 1}: ${response.body.substring(i, end)}');
+          }
+        } else {
+          print('📊 Response body is empty');
+        }
+
         print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
         if (response.statusCode == 200) {
           print(

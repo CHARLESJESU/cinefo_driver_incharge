@@ -64,7 +64,7 @@ class _LoginscreenState extends State<Loginscreen> {
         },
         onUpgrade: (Database db, int oldVersion, int newVersion) async {
           // Drop and recreate table to include profile_image
-          await db.execute('DROP TABLE IF EXISTS login_data');
+          // await db.execute('DROP TABLE IF EXISTS login_data');
           await db.execute('''
             CREATE TABLE login_data (
               id INTEGER PRIMARY KEY AUTOINCREMENT,

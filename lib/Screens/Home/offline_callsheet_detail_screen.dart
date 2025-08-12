@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Attendance/intime.dart';
-import 'package:production/Screens/Attendance/outtime.dart';
 import 'package:production/Screens/Attendance/nfcnotifier.dart';
+import 'package:production/Screens/Attendance/outtimecharles.dart';
 import 'package:production/Screens/Home/colorcode.dart';
 import 'package:production/Screens/configuration/configuration.dart';
 import 'package:production/Screens/callsheet/closecallsheet.dart';
@@ -23,6 +23,37 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
     final String? location = callsheet['location']?.toString();
     final String? Moviename = callsheet['MovieName']?.toString();
     final String? time = callsheet['shift']?.toString();
+
+    // Get current date for comparison
+    final DateTime now = DateTime.now();
+    final String currentDate =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+    // Parse the createdAt date
+    DateTime? callsheetDate;
+    try {
+      callsheetDate = DateTime.parse(createdAt);
+    } catch (e) {
+      print('Error parsing date: $e');
+    }
+
+    // Determine button states based on date comparison
+    bool isToday = createdAt == currentDate;
+    bool isPastDate = false;
+
+    if (callsheetDate != null) {
+      final DateTime callsheetDay =
+          DateTime(callsheetDate.year, callsheetDate.month, callsheetDate.day);
+      final DateTime today = DateTime(now.year, now.month, now.day);
+
+      isPastDate = callsheetDay.isBefore(today);
+    }
+
+    // Button enable/disable logic
+    bool enableAttendanceButtons =
+        isToday; // In-time, Out-time, Config only enabled for today
+    bool enableCloseButton =
+        isToday || isPastDate; // Close button enabled for today and past dates
 
     return Scaffold(
       appBar: AppBar(
@@ -134,7 +165,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                   time ?? 'Unknown',
                                   style: TextStyle(
                                     color: Color(0xFF2B5682),
-                                    fontSize: 10,
+                                    fontSize: 8,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -228,109 +259,143 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           GestureDetector(
-                            onTap: () {
-                              if (productionTypeId == 3 ||
-                                  (productionTypeId == 2 &&
-                                      passProjectidresponse?[
-                                              'errordescription'] !=
-                                          "No Record found")) {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => ChangeNotifierProvider(
-                                            create: (_) => NFCNotifier(),
-                                            child: const IntimeScreen())));
-                              }
-                            },
+                            onTap: enableAttendanceButtons
+                                ? () {
+                                    if (productionTypeId == 3 ||
+                                        (productionTypeId == 2 &&
+                                            passProjectidresponse?[
+                                                    'errordescription'] !=
+                                                "No Record found")) {
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ChangeNotifierProvider(
+                                                      create: (_) =>
+                                                          NFCNotifier(),
+                                                      child:
+                                                          const IntimeScreen())));
+                                    }
+                                  }
+                                : null, // Disable tap when not enabled
                             child: _actionButton(
                               "In-time",
                               Icons.login,
-                              AppColors.primaryLight,
+                              enableAttendanceButtons
+                                  ? AppColors.primaryLight
+                                  : Colors.grey,
+                              enabled: enableAttendanceButtons,
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              if (productionTypeId == 3 ||
-                                  (productionTypeId == 2 &&
-                                      passProjectidresponse?[
-                                              'errordescription'] !=
-                                          "No Record found")) {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => ChangeNotifierProvider(
-                                            create: (_) => NFCNotifier(),
-                                            child: OuttimeScreen())));
-                              }
-                            },
+                            onTap: enableAttendanceButtons
+                                ? () {
+                                    if (productionTypeId == 3 ||
+                                        (productionTypeId == 2 &&
+                                            passProjectidresponse?[
+                                                    'errordescription'] !=
+                                                "No Record found")) {
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ChangeNotifierProvider(
+                                                      create: (_) =>
+                                                          NFCNotifier(),
+                                                      child:
+                                                          Outtimecharles())));
+                                    }
+                                  }
+                                : null, // Disable tap when not enabled
                             child: _actionButton(
                               "Out-time",
                               Icons.logout,
-                              AppColors.primaryLight,
+                              enableAttendanceButtons
+                                  ? AppColors.primaryLight
+                                  : Colors.grey,
+                              enabled: enableAttendanceButtons,
                             ),
                           ),
                           if (productionTypeId != 3)
                             GestureDetector(
-                              onTap: () {
-                                if (passProjectidresponse?[
-                                        'errordescription'] !=
-                                    "No Record found") {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const ConfigurationScreen()));
-                                }
-                              },
+                              onTap: enableAttendanceButtons
+                                  ? () {
+                                      if (passProjectidresponse?[
+                                              'errordescription'] !=
+                                          "No Record found") {
+                                        Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const ConfigurationScreen()));
+                                      }
+                                    }
+                                  : null, // Disable tap when not enabled
                               child: _actionButton(
                                 "Config",
                                 Icons.settings,
-                                AppColors.primaryLight,
+                                enableAttendanceButtons
+                                    ? AppColors.primaryLight
+                                    : Colors.grey,
+                                enabled: enableAttendanceButtons,
                               ),
                             ),
                         ],
                       ),
                     ),
                     SizedBox(height: 20),
-                    // Close callsheet button (disabled for offline)
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CloseCallSheet(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.red.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.close,
-                              color: Colors.red,
-                              size: 20,
+                    // Close callsheet button with date-based enable/disable
+                    Opacity(
+                      opacity: enableCloseButton ? 1.0 : 0.5,
+                      child: GestureDetector(
+                        onTap: enableCloseButton
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CloseCallSheet(),
+                                  ),
+                                );
+                              }
+                            : null, // Disable tap for future dates
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            color: enableCloseButton
+                                ? Colors.red.withOpacity(0.1)
+                                : Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: enableCloseButton
+                                  ? Colors.red.withOpacity(0.3)
+                                  : Colors.grey.withOpacity(0.3),
+                              width: 1,
                             ),
-                            SizedBox(width: 8),
-                            Text(
-                              "Close Callsheet",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.red,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.close,
+                                color: enableCloseButton
+                                    ? Colors.red
+                                    : Colors.grey,
+                                size: 20,
                               ),
-                            ),
-                          ],
+                              SizedBox(width: 8),
+                              Text(
+                                "Close Callsheet",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: enableCloseButton
+                                      ? Colors.red
+                                      : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -344,33 +409,37 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _actionButton(String title, IconData icon, Color color) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+  Widget _actionButton(String title, IconData icon, Color color,
+      {bool enabled = true}) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5, // Make disabled buttons semi-transparent
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 30,
+            ),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 30,
+          SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: enabled ? Colors.black87 : Colors.grey,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
