@@ -117,6 +117,7 @@ class _ReportsState extends State<Reports> {
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
+            automaticallyImplyLeading: false,
             title: const Text(
               "CallSheets Reports",
               style:
@@ -124,10 +125,6 @@ class _ReportsState extends State<Reports> {
             ),
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
           ),
           body: SingleChildScrollView(
             child: Padding(

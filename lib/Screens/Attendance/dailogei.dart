@@ -2,7 +2,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'dart:async';
 import 'dart:convert';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -27,6 +26,7 @@ void showResultDialogi(
   String message,
   VoidCallback onDismissed,
   String vcid,
+  String attendanceStatus,
 ) {
   showDialog(
     context: context,
@@ -36,6 +36,7 @@ void showResultDialogi(
         message: message,
         onDismissed: onDismissed,
         vcid: vcid,
+        attendanceStatus: attendanceStatus,
       );
     },
   );
@@ -45,12 +46,14 @@ class _CountdownDialog extends StatefulWidget {
   final String message;
   final VoidCallback onDismissed;
   final String vcid;
+  final String attendanceStatus;
 
   const _CountdownDialog({
     Key? key,
     required this.message,
     required this.onDismissed,
     required this.vcid,
+    required this.attendanceStatus,
   }) : super(key: key);
 
   @override
@@ -84,8 +87,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   }
 
   String? latitude, longitude, location;
-  Position? _currentPosition;
-  final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
   bool _isloading = false;
   bool _attendanceMarked = false;
   String debugMessage = '';
@@ -152,7 +153,6 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       Placemark place = placemarks[0];
 
       setState(() {
-        _currentPosition = position;
         latitude = position.latitude.toString();
         longitude = position.longitude.toString();
         location =
@@ -191,7 +191,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         'latitude': position.latitude.toString(),
         'longitude': position.longitude.toString(),
         'location': location ?? "Unknown",
-        'attendance_status': '1'
+        'attendance_status': widget.attendanceStatus
       };
       final lines = widget.message.split('\n');
       for (final line in lines) {
@@ -286,6 +286,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   }
 }
 
+// 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊 📊
 // In this code block, we define the IntimeSyncService class
 class IntimeSyncService {
   Timer? _timer;
@@ -294,7 +295,7 @@ class IntimeSyncService {
   void startSync() {
     print('IntimeSyncService: startSync() called. Timer started.');
     _timer = Timer.periodic(
-        const Duration(seconds: 20), (_) => _tryPostIntimeRows());
+        const Duration(seconds: 120), (_) => _tryPostIntimeRows());
   }
 
   void stopSync() {

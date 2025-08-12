@@ -110,12 +110,6 @@ class NFCNotifier extends ChangeNotifier {
     final encrypt.IV iv = encrypt.IV.fromUtf8(encryptionKey);
     final decryptedText = decryptAES(encryptedText, encryptionKey, iv);
     Map<String, dynamic> data = jsonDecode(decryptedText);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    List<String> storedList = prefs.getStringList("offline_attendance") ?? [];
-    String jsonData = jsonEncode(data);
-    storedList.add(jsonData);
-    await prefs.setStringList("offline_attendance", storedList);
     _vcid = data['vcid'];
     String formattedData = '''
 Name: ${data["name"]}

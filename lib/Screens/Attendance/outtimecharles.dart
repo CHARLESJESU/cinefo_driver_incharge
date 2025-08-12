@@ -4,24 +4,24 @@ import 'package:production/Screens/Attendance/nfcnotifier.dart';
 
 import 'package:provider/provider.dart';
 
-class IntimeScreen extends StatelessWidget {
-  const IntimeScreen({super.key});
+class Outtimecharles extends StatelessWidget {
+  const Outtimecharles({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<NFCNotifier>(
       create: (_) => NFCNotifier(),
-      builder: (context, child) => _IntimeScreenBody(),
+      builder: (context, child) => _OuttimecharlesBody(),
     );
   }
 }
 
-class _IntimeScreenBody extends StatefulWidget {
+class _OuttimecharlesBody extends StatefulWidget {
   @override
-  State<_IntimeScreenBody> createState() => _IntimeScreenBodyState();
+  State<_OuttimecharlesBody> createState() => _OuttimecharlesBodyState();
 }
 
-class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
+class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
   String debugMessage = '';
 
   // Future<void> handleVCID(String vcid) async {
@@ -52,7 +52,7 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text("In-time", style: TextStyle(color: Colors.black)),
+        title: const Text("Out-time", style: TextStyle(color: Colors.black)),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -90,7 +90,7 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
                           currentMessage,
                           () {},
                           currentVcid.toString(),
-                          '1', // In-time attendance status
+                          '2', // Out-time attendance status
                         );
                         // await handleVCID(provider.vcid.toString());
                       });
