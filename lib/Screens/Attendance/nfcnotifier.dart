@@ -6,10 +6,22 @@ import 'package:nfc_manager/nfc_manager.dart';
 import 'package:production/Screens/Attendance/encryption.dart';
 
 class NFCNotifier extends ChangeNotifier {
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void safeNotifyListeners() {
+    if (!_disposed) notifyListeners();
+  }
+
   void clearNfcData() {
     _message = "";
     _vcid = null;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   bool _isProcessing = false;
@@ -27,38 +39,38 @@ class NFCNotifier extends ChangeNotifier {
     try {
       _isProcessing = true;
       _hasStarted = true;
-      notifyListeners();
+      safeNotifyListeners();
       bool isAvail = await NfcManager.instance.isAvailable();
       if (isAvail) {
         if (nfcOperation == NFCOperation.read) {
           _message = "Scanning";
         }
-        notifyListeners();
+        safeNotifyListeners();
         NfcManager.instance.startSession(onDiscovered: (NfcTag nfcTag) async {
           if (nfcOperation == NFCOperation.read) {
             await _readFromTag(tag: nfcTag);
           }
           _hasStarted = false;
           _isProcessing = false;
-          notifyListeners();
+          safeNotifyListeners();
           await NfcManager.instance.stopSession();
         }, onError: (e) async {
           _hasStarted = false;
           _isProcessing = false;
           _message = e.toString();
-          notifyListeners();
+          safeNotifyListeners();
         });
       } else {
         _isProcessing = false;
         _hasStarted = false;
         _message = "Please Enable NFC From Settings";
-        notifyListeners();
+        safeNotifyListeners();
       }
     } catch (e) {
       _isProcessing = false;
       _hasStarted = false;
       _message = e.toString();
-      notifyListeners();
+      safeNotifyListeners();
     }
   }
 
@@ -113,7 +125,7 @@ Union Name: ${data["unionName"]}
 ''';
     print(vcid);
     _message = formattedData;
-    notifyListeners();
+    safeNotifyListeners();
   }
 }
 

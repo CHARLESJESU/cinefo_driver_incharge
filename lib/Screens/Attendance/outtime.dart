@@ -21,47 +21,54 @@ class _OuttimeScreenState extends State<OuttimeScreen> {
   late NFCNotifier nfcNotifier;
   late VoidCallback nfcListener;
   // Save Outtime NFC scan to SQLite with attendance_status = '2'
+  bool _isSaving = false;
   Future<void> saveOuttimeToSQLite(String vcid) async {
-    final dbPath = await getDatabasesPath();
-    final db = await openDatabase(path.join(dbPath, 'production_login.db'));
-    // You can add more fields as needed
-    // Parse message for name, designation, code, unionName like dailogei.dart
-    final nfcNotifier = Provider.of<NFCNotifier>(context, listen: false);
-    final message = nfcNotifier.message ?? '';
-    Map<String, dynamic> data = {
-      'name': '',
-      'designation': '',
-      'code': '',
-      'unionName': '',
-      'vcid': vcid,
-      'marked_at': DateTime.now().toIso8601String(),
-      'latitude': '',
-      'longitude': '',
-      'location': '',
-      'attendance_status': '2',
-    };
-    final lines = message.split('\n');
-    for (final line in lines) {
-      if (line.startsWith('Name:'))
-        data['name'] = line.replaceFirst('Name:', '').trim();
-      if (line.startsWith('Designation:'))
-        data['designation'] = line.replaceFirst('Designation:', '').trim();
-      if (line.startsWith('Code:'))
-        data['code'] = line.replaceFirst('Code:', '').trim();
-      if (line.startsWith('Union Name:'))
-        data['unionName'] = line.replaceFirst('Union Name:', '').trim();
-    }
+    if (_isSaving) return;
+    _isSaving = true;
     try {
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      data['latitude'] = position.latitude.toString();
-      data['longitude'] = position.longitude.toString();
-    } catch (e) {
-      // Location not available, leave as empty
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      // You can add more fields as needed
+      // Parse message for name, designation, code, unionName like dailogei.dart
+      final nfcNotifier = Provider.of<NFCNotifier>(context, listen: false);
+      final message = nfcNotifier.message ?? '';
+      Map<String, dynamic> data = {
+        'name': '',
+        'designation': '',
+        'code': '',
+        'unionName': '',
+        'vcid': vcid,
+        'marked_at': DateTime.now().toIso8601String(),
+        'latitude': '',
+        'longitude': '',
+        'location': '',
+        'attendance_status': '2',
+      };
+      final lines = message.split('\n');
+      for (final line in lines) {
+        if (line.startsWith('Name:'))
+          data['name'] = line.replaceFirst('Name:', '').trim();
+        if (line.startsWith('Designation:'))
+          data['designation'] = line.replaceFirst('Designation:', '').trim();
+        if (line.startsWith('Code:'))
+          data['code'] = line.replaceFirst('Code:', '').trim();
+        if (line.startsWith('Union Name:'))
+          data['unionName'] = line.replaceFirst('Union Name:', '').trim();
+      }
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high);
+        data['latitude'] = position.latitude.toString();
+        data['longitude'] = position.longitude.toString();
+      } catch (e) {
+        // Location not available, leave as empty
+      }
+      await db.insert('intime', data);
+      await db.close();
+      debugPrint('Outtime NFC saved to SQLite with attendance_status=2: $vcid');
+    } finally {
+      _isSaving = false;
     }
-    await db.insert('intime', data);
-    await db.close();
-    debugPrint('Outtime NFC saved to SQLite with attendance_status=2: $vcid');
   }
 
   bool isLoading = false;
@@ -79,6 +86,8 @@ class _OuttimeScreenState extends State<OuttimeScreen> {
         // Store NFC scan in SQLite with attendance_status = 2
         await saveOuttimeToSQLite(vcid);
         updateDebugMessage('Outtime NFC stored locally.');
+        // Show dialog with fetched data after NFC scan
+        await onCardDetected();
         // Do NOT post immediately. The background sync service will handle posting.
       }
     };
@@ -491,6 +500,37 @@ class _DubbingConfigDialogState extends State<DubbingConfigDialog> {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      final requestbody = jsonEncode({
+        "data": vcid,
+        "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
+        "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
+        "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
+        "doubing": {
+          "mainCharacter": 0,
+          "smallCharacter": 0,
+          "bitCharacter": 0,
+          "singlebitCharacter": 0,
+          "group": 0,
+          "fight": 0,
+          "singlebitCharacterOtherLanguage": 0,
+          "mainCharacterOtherLanguage": 0,
+          "smallCharacterOtherLanguage": 0,
+          "bitCharacterOtherLanguage": 0,
+          "groupOtherLanguage": 0,
+          "fightOtherLanguage": 0,
+          "voicetest": 0,
+          "correction": 0,
+          "leadRole": 0,
+          "secondLeadRole": 0,
+          "leadRoleOtherLanguage": 0,
+          "secondLeadRoleOtherLanguage": 0
+        },
+        "latitude": position.latitude.toString(),
+        "longitude": position.longitude.toString(),
+        "attendanceStatus": "2",
+        "location": location ?? "Unknown",
+      });
+      print(requestbody);
       print("markattendance called with vcid: $vcid");
       // Mark attendance API call
       final response = await http.post(
@@ -620,6 +660,7 @@ class _DubbingConfigDialogState extends State<DubbingConfigDialog> {
         await Future.delayed(Duration(seconds: 2));
 
         // Now close dialog
+        if (!mounted) return;
         Navigator.of(context).pop();
 
         // Navigate after closing dialog

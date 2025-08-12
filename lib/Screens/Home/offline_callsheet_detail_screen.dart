@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:production/Screens/Attendance/intime.dart';
+import 'package:production/Screens/Attendance/outtime.dart';
+import 'package:production/Screens/Attendance/nfcnotifier.dart';
+import 'package:production/Screens/Home/colorcode.dart';
+import 'package:production/Screens/configuration/configuration.dart';
+import 'package:production/Screens/callsheet/closecallsheet.dart';
+import 'package:production/variables.dart';
+import 'package:provider/provider.dart';
 
 class OfflineCallsheetDetailScreen extends StatelessWidget {
   final Map<String, dynamic> callsheet;
@@ -8,11 +16,9 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String name = callsheet['name']?.toString() ?? 'Unknown';
-    final String locationType =
-        callsheet['locationType']?.toString() ?? 'Unknown';
+
     final String createdAt =
         (callsheet['created_at']?.toString() ?? '').split('T').first;
-    final String? shift = callsheet['shift']?.toString();
     final String? id = callsheet['callSheetNo']?.toString();
     final String? location = callsheet['location']?.toString();
     final String? Moviename = callsheet['MovieName']?.toString();
@@ -20,8 +26,19 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Callsheet Details'),
+        automaticallyImplyLeading: false, // Disable automatic back button
+        title: Text(
+          'Callsheet Details',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF2B5682),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       backgroundColor: const Color.fromRGBO(247, 244, 244, 1),
       body: SingleChildScrollView(
@@ -117,7 +134,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                   time ?? 'Unknown',
                                   style: TextStyle(
                                     color: Color(0xFF2B5682),
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -151,7 +168,9 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  "$id-$name" ?? 'Unknown',
+                                  id != null && name.isNotEmpty
+                                      ? "$id-$name"
+                                      : 'Unknown',
                                   style: TextStyle(
                                     color: Color(0xFF2B5682),
                                     fontSize: 12,
@@ -198,7 +217,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 25),
-                    // Action buttons row (disabled for offline, but shown for UI consistency)
+                    // Action buttons row with exact same functionality as callsheet
                     Container(
                       padding: EdgeInsets.symmetric(vertical: 15),
                       decoration: BoxDecoration(
@@ -208,46 +227,111 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _actionButton(
-                              "In-time", Icons.login, Color(0xFF2B5682)),
-                          _actionButton(
-                              "Out-time", Icons.logout, Color(0xFF2B5682)),
-                          _actionButton(
-                              "Config", Icons.settings, Color(0xFF2B5682)),
+                          GestureDetector(
+                            onTap: () {
+                              if (productionTypeId == 3 ||
+                                  (productionTypeId == 2 &&
+                                      passProjectidresponse?[
+                                              'errordescription'] !=
+                                          "No Record found")) {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => ChangeNotifierProvider(
+                                            create: (_) => NFCNotifier(),
+                                            child: const IntimeScreen())));
+                              }
+                            },
+                            child: _actionButton(
+                              "In-time",
+                              Icons.login,
+                              AppColors.primaryLight,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              if (productionTypeId == 3 ||
+                                  (productionTypeId == 2 &&
+                                      passProjectidresponse?[
+                                              'errordescription'] !=
+                                          "No Record found")) {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => ChangeNotifierProvider(
+                                            create: (_) => NFCNotifier(),
+                                            child: OuttimeScreen())));
+                              }
+                            },
+                            child: _actionButton(
+                              "Out-time",
+                              Icons.logout,
+                              AppColors.primaryLight,
+                            ),
+                          ),
+                          if (productionTypeId != 3)
+                            GestureDetector(
+                              onTap: () {
+                                if (passProjectidresponse?[
+                                        'errordescription'] !=
+                                    "No Record found") {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const ConfigurationScreen()));
+                                }
+                              },
+                              child: _actionButton(
+                                "Config",
+                                Icons.settings,
+                                AppColors.primaryLight,
+                              ),
+                            ),
                         ],
                       ),
                     ),
                     SizedBox(height: 20),
                     // Close callsheet button (disabled for offline)
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.red.withOpacity(0.3),
-                          width: 1,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CloseCallSheet(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.red.withOpacity(0.3),
+                            width: 1,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.close,
-                            color: Colors.red,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            "Close Callsheet (Offline)",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.close,
                               color: Colors.red,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 8),
+                            Text(
+                              "Close Callsheet",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

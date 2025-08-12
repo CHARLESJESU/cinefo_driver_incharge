@@ -118,7 +118,7 @@ class _ReportsState extends State<Reports> {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             title: const Text(
-              "Reports",
+              "CallSheets Reports",
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
@@ -135,63 +135,6 @@ class _ReportsState extends State<Reports> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // SizedBox(height: 20),
-                  // Header section
-                  // Container(
-                  //   padding: EdgeInsets.all(20),
-                  //   decoration: BoxDecoration(
-                  //     color: Color(0xFF355E8C),
-                  //     borderRadius: BorderRadius.circular(20),
-                  //     boxShadow: [
-                  //       BoxShadow(
-                  //         color: Colors.black.withOpacity(0.2),
-                  //         blurRadius: 8,
-                  //         offset: Offset(0, 4),
-                  //       ),
-                  //     ],
-                  //   ),
-                  //   child: Row(
-                  //     children: [
-                  //       Container(
-                  //         width: 60,
-                  //         height: 60,
-                  //         decoration: BoxDecoration(
-                  //           color: Colors.white.withOpacity(0.2),
-                  //           borderRadius: BorderRadius.circular(30),
-                  //         ),
-                  //         child: Icon(
-                  //           Icons.assessment,
-                  //           color: Colors.white,
-                  //           size: 30,
-                  //         ),
-                  //       ),
-                  //       SizedBox(width: 15),
-                  //       Expanded(
-                  //         child: Column(
-                  //           crossAxisAlignment: CrossAxisAlignment.start,
-                  //           children: [
-                  //             Text(
-                  //               'CallSheets Reports',
-                  //               style: TextStyle(
-                  //                 color: Colors.white,
-                  //                 fontSize: 18,
-                  //                 fontWeight: FontWeight.bold,
-                  //               ),
-                  //             ),
-                  //             SizedBox(height: 4),
-                  //             Text(
-                  //               'View all callsheet reports',
-                  //               style: TextStyle(
-                  //                 color: Colors.white70,
-                  //                 fontSize: 14,
-                  //               ),
-                  //             ),
-                  //           ],
-                  //         ),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
                   SizedBox(height: 30),
                   // Reports list section
                   if (isLoading)
@@ -250,40 +193,17 @@ class _ReportsState extends State<Reports> {
                       ),
                     )
                   else
-                    Container(
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'CallSheets Overview',
-                            style: TextStyle(
-                              color: Color(0xFF2B5682),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          ...callSheets.map((callsheet) => containerBox(
-                                context,
-                                callsheet['callSheetNo'] ?? "N/A",
-                                callsheet['callsheetStatus'] ?? "N/A",
-                                callsheet['location'] ?? "N/A",
-                                callsheet['date'],
-                              )),
-                        ],
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ...callSheets.map((callsheet) => containerBox(
+                              context,
+                              callsheet['callSheetNo'] ?? "N/A",
+                              callsheet['callsheetStatus'] ?? "N/A",
+                              callsheet['location'] ?? "N/A",
+                              callsheet['date'],
+                            )),
+                      ],
                     ),
                 ],
               ),

@@ -29,17 +29,19 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     String dbPath = path.join(await getDatabasesPath(), 'production_login.db');
     return openDatabase(
       dbPath,
-      version: 1,
+      version: 2, // Increment version to trigger onUpgrade
       onOpen: (db) async {
-        // Drop the existing callsheet table if it exists
-        // await db.execute('DROP TABLE IF EXISTS callsheet');
+        // Drop the existing callsheet table if it exists and recreate with all columns
+        await db.execute('DROP TABLE IF EXISTS callsheet');
         await db.execute('''
           CREATE TABLE IF NOT EXISTS callsheet (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             callSheetId INTEGER,
             callSheetNo TEXT,
             MovieName TEXT,
+            projectName TEXT,
             name TEXT,
+            shift TEXT,
             shiftId INTEGER,
             latitude REAL,
             longitude REAL,
@@ -63,8 +65,9 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
             callSheetId INTEGER,
             callSheetNo TEXT,
             MovieName TEXT,
-            Shift TEXT,
+            projectName TEXT,
             name TEXT,
+            shift TEXT,
             shiftId INTEGER,
             latitude REAL,
             longitude REAL,
@@ -81,14 +84,57 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // Drop and recreate table with all required columns
+        await db.execute('DROP TABLE IF EXISTS callsheet');
+        await db.execute('''
+          CREATE TABLE callsheet (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            callSheetId INTEGER,
+            callSheetNo TEXT,
+            MovieName TEXT,
+            projectName TEXT,
+            name TEXT,
+            shift TEXT,
+            shiftId INTEGER,
+            latitude REAL,
+            longitude REAL,
+            projectId TEXT,
+            vmid TEXT,
+            vpid TEXT,
+            vpoid TEXT,
+            vbpid TEXT,
+            productionTypeid INTEGER,
+            location TEXT,
+            locationType TEXT,
+            locationTypeId INTEGER,
+            created_at TEXT
+          )
+        ''');
+        print('✅ Callsheet table recreated with all required columns');
+      },
     );
   }
 
   Future<void> saveCallsheetToSQLite(Map<String, dynamic> data) async {
-    final db = await _callsheetDb;
-    await db.insert('callsheet', data,
-        conflictAlgorithm: ConflictAlgorithm.replace);
-    await db.close();
+    try {
+      print('💾 Attempting to save to SQLite: $data');
+      final db = await _callsheetDb;
+
+      // Verify table structure
+      final tableInfo = await db.rawQuery('PRAGMA table_info(callsheet)');
+      print('📋 Table structure: $tableInfo');
+
+      final result = await db.insert('callsheet', data,
+          conflictAlgorithm: ConflictAlgorithm.replace);
+
+      print('✅ Successfully saved to SQLite with ID: $result');
+      await db.close();
+    } catch (e) {
+      print('❌ Error saving to SQLite: $e');
+      print('❌ Data being saved: $data');
+      rethrow;
+    }
   }
 
   bool screenLoading = false;
@@ -340,20 +386,25 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
               responseData != null && responseData['callSheetNo'] != null
                   ? responseData['callSheetNo'].toString()
                   : null;
-          final String? MovieName =
+          final String? movieName =
               responseData != null && responseData['projectName'] != null
                   ? responseData['projectName'].toString()
-                  : null;
-          final String? Shift =
+                  : registeredMovie; // fallback to existing value
+          final String? shiftName =
               responseData != null && responseData['shift'] != null
                   ? responseData['shift'].toString()
-                  : null;
+                  : selectedShift; // fallback to selected shift
+
           final Map<String, dynamic> sqlitePayload =
               Map<String, dynamic>.from(payload);
           sqlitePayload['callSheetId'] = callSheetId;
           sqlitePayload['callSheetNo'] = callSheetNo;
-          sqlitePayload['projectName'] = MovieName;
-          sqlitePayload['shift'] = Shift;
+          sqlitePayload['MovieName'] = movieName;
+          sqlitePayload['projectName'] =
+              movieName; // same value for both fields
+          sqlitePayload['shift'] = shiftName;
+
+          print('📝 SQLite payload: $sqlitePayload');
           await saveCallsheetToSQLite(sqlitePayload);
         }
         showsuccessPopUp(context, "created call sheet successfully", () {

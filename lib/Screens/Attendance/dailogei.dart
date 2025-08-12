@@ -286,6 +286,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   }
 }
 
+// In this code block, we define the IntimeSyncService class
 class IntimeSyncService {
   Timer? _timer;
   bool _isPosting = false;

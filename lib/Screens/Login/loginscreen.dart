@@ -19,18 +19,18 @@ class Loginscreen extends StatefulWidget {
 
 class _LoginscreenState extends State<Loginscreen> {
   // Database helper instance
-  Database? _database;
+  static Database? _database;
 
   // Initialize database
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null && _database!.isOpen) return _database!;
     print('🔄 Initializing SQLite database...');
     _database = await _initDatabase();
     print('✅ Database initialization completed');
     return _database!;
   }
 
-  // Create database and login table
+  // Create database and login table (with profile_image field)
   Future<Database> _initDatabase() async {
     try {
       String dbPath =
@@ -39,13 +39,16 @@ class _LoginscreenState extends State<Loginscreen> {
 
       final db = await openDatabase(
         dbPath,
-        version: 2,
+        version: 3, // Increment version to force recreation
         onCreate: (Database db, int version) async {
+          await db.execute('DROP TABLE IF EXISTS login_data');
+          print('📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊hvjhjvkjhgvhjgjmnvbkjgjbvn📊');
           print('🔨 Creating login_data table...');
           await db.execute('''
             CREATE TABLE login_data (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               manager_name TEXT,
+              profile_image TEXT,
               registered_movie TEXT,
               mobile_number TEXT,
               password TEXT,
@@ -60,13 +63,25 @@ class _LoginscreenState extends State<Loginscreen> {
           print('✅ SQLite login_data table created successfully');
         },
         onUpgrade: (Database db, int oldVersion, int newVersion) async {
-          if (oldVersion < 2) {
-            // Add device_id column if it doesn't exist
-            print(
-                '🛠️ Upgrading database: Adding device_id column if needed...');
-            await db
-                .execute("ALTER TABLE login_data ADD COLUMN device_id TEXT;");
-          }
+          // Drop and recreate table to include profile_image
+          await db.execute('DROP TABLE IF EXISTS login_data');
+          await db.execute('''
+            CREATE TABLE login_data (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              manager_name TEXT,
+              profile_image TEXT,
+              registered_movie TEXT,
+              mobile_number TEXT,
+              password TEXT,
+              project_id TEXT,
+              production_type_id INTEGER,
+              production_house TEXT,
+              vmid INTEGER,
+              login_date TEXT,
+              device_id TEXT
+            )
+          ''');
+          print('✅ SQLite login_data table recreated with profile_image');
         },
       );
 
@@ -85,54 +100,79 @@ class _LoginscreenState extends State<Loginscreen> {
   // Save login data to SQLite (ONLY if table is empty - first user only)
   Future<void> saveLoginData() async {
     try {
+      print('🔄 Starting saveLoginData...');
       final db = await database;
+      print('✅ Database connection obtained');
 
-      // Check if table already contains any data
-      final existingData = await db.query('login_data');
+      // Use a transaction to ensure the database stays open
+      await db.transaction((txn) async {
+        // For testing purposes, clear existing data first
+        await txn.delete('login_data');
+        print('🗑️ Cleared existing login data for fresh test');
 
-      if (existingData.isNotEmpty) {
+        // Check if table already contains any data
+        final existingData = await txn.query('login_data');
+        print('📊 Existing data count: ${existingData.length}');
+
+        if (existingData.isNotEmpty) {
+          print(
+              '🚫 Login table already contains data. Skipping insert (First user only policy)');
+          print('📊 Existing records count: ${existingData.length}');
+          print(
+              '👤 First user: ${existingData.first['manager_name']} (${existingData.first['mobile_number']})');
+          return; // Exit without adding new data
+        }
+
+        // Table is empty, proceed with first user registration
+        print('✅ Login table is empty. Adding first user data...');
+        print('🔍 Current ProfileImage variable value: "$ProfileImage"');
+        print('🔍 ProfileImage type: ${ProfileImage.runtimeType}');
+        print('🔍 ProfileImage length: ${ProfileImage?.length}');
+
+        // Prepare login data for first user
+        final loginData = {
+          'manager_name': managerName ?? '',
+          'profile_image': ProfileImage ?? '',
+          'registered_movie': registeredMovie ?? '',
+          'mobile_number': loginmobilenumber.text,
+          'password': loginpassword.text,
+          'project_id': projectId ?? '',
+          'production_type_id': productionTypeId ?? 0,
+          'production_house': productionHouse ?? '',
+          'vmid': vmid ?? 0,
+          'login_date': DateTime.now().toIso8601String(),
+          'device_id': _deviceId,
+        };
+
         print(
-            '🚫 Login table already contains data. Skipping insert (First user only policy)');
-        print('📊 Existing records count: ${existingData.length}');
+            '📝 ProfileImage value being saved: "${loginData['profile_image']}"');
+        print('📝 Full login data being saved: $loginData');
+        print('📝 Adding FIRST USER login data: $loginData');
+
+        // Insert first user login data within transaction
+        final insertResult = await txn.insert(
+          'login_data',
+          loginData,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
         print(
-            '👤 First user: ${existingData.first['manager_name']} (${existingData.first['mobile_number']})');
-        return; // Exit without adding new data
-      }
+            '🎉 FIRST USER login data saved to SQLite successfully with ID: $insertResult');
+      });
 
-      // Table is empty, proceed with first user registration
-      print('✅ Login table is empty. Adding first user data...');
-
-      // Prepare login data for first user
-      final loginData = {
-        'manager_name': managerName ?? '',
-        'registered_movie': registeredMovie ?? '',
-        'mobile_number': loginmobilenumber.text,
-        'password': loginpassword.text,
-        'project_id': projectId ?? '',
-        'production_type_id': productionTypeId ?? 0,
-        'production_house': productionHouse ?? '',
-        'vmid': vmid ?? 0,
-        'login_date': DateTime.now().toIso8601String(),
-        'device_id': _deviceId,
-      };
-
-      print('📝 Adding FIRST USER login data: $loginData');
-
-      // Insert first user login data
-      final insertResult = await db.insert(
-        'login_data',
-        loginData,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      print(
-          '🎉 FIRST USER login data saved to SQLite successfully with ID: $insertResult');
-
-      // Verify the data was stored correctly
+      // Verify the data was stored correctly outside transaction
       final savedData = await getActiveLoginData();
       print('🔍 Verification - Retrieved first user data: $savedData');
     } catch (e) {
       print('❌ Error saving login data: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: ${StackTrace.current}');
+
+      // Reset database connection on error
+      if (e.toString().contains('database_closed')) {
+        print('🔄 Resetting database connection due to closed database');
+        _database = null;
+      }
     }
   }
 
@@ -235,6 +275,7 @@ class _LoginscreenState extends State<Loginscreen> {
   String? deviceId;
   Map? getdeviceidresponse;
   String? managerName;
+  String? ProfileImage;
 
   int? vmid;
   bool screenloading = false;
@@ -383,6 +424,7 @@ class _LoginscreenState extends State<Loginscreen> {
             final responseData = getdeviceidresponse!['responseData'][0];
             projectId = responseData['projectId'] ?? "";
             managerName = responseData['managerName'] ?? "Unknown";
+            ProfileImage = responseData['profileImage'] ?? "Unknown";
             registeredMovie = responseData['projectName'] ?? "N/A";
             vmid = responseData['vmId'] ?? "N/A";
             productionTypeId = responseData['productionTypeId'] ?? 0;
@@ -440,6 +482,7 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   Future<void> loginr() async {
+    print("loginr() called📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊");
     setState(() {
       _isLoading = true;
     });
@@ -469,41 +512,178 @@ class _LoginscreenState extends State<Loginscreen> {
           "password": loginpassword.text,
         }),
       );
+      print(
+          "Login HTTP status:📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊hvjhjvkjhgvhjgjmnvbkjgjbvn📊 ${response.statusCode}");
 
+      // Print response body in chunks to avoid truncation
+      final responseBody = response.body;
+      print("Login HTTP response length: ${responseBody.length}");
+      const chunkSize = 800; // Safe chunk size for Flutter console
+      for (int i = 0; i < responseBody.length; i += chunkSize) {
+        final end = (i + chunkSize < responseBody.length)
+            ? i + chunkSize
+            : responseBody.length;
+        final chunk = responseBody.substring(i, end);
+        print("Login HTTP response chunk ${(i ~/ chunkSize) + 1}: $chunk");
+      }
       setState(() {
         _isLoading = false;
       });
 
       if (response.statusCode == 200) {
-        print(response.body);
         try {
           final responseBody = json.decode(response.body);
+          print("📊 Decoded JSON response:");
+          print("📊 Response keys: ${responseBody.keys.toList()}");
+
+          if (responseBody['responseData'] != null) {
+            print(
+                "📊 ResponseData keys: ${responseBody['responseData'].keys.toList()}");
+            print("📊 ResponseData content: ${responseBody['responseData']}");
+
+            // Check if profileImage exists in responseData
+            if (responseBody['responseData']['profileImage'] != null) {
+              print(
+                  "📸 ProfileImage found in responseData: ${responseBody['responseData']['profileImage']}");
+            } else {
+              print("⚠️ ProfileImage NOT found in responseData");
+            }
+          }
+
+          if (responseBody['vsid'] != null) {
+            print("📊 VSID: ${responseBody['vsid']}");
+          }
 
           if (responseBody != null && responseBody['responseData'] != null) {
             setState(() {
               loginresponsebody = responseBody;
               loginresult = responseBody['responseData'];
+
+              // Update ProfileImage from login response if available
+              // Check multiple possible locations for profileImage
+              String? loginProfileImage;
+
+              if (responseBody['responseData'] is Map &&
+                  responseBody['responseData']['profileImage'] != null) {
+                loginProfileImage =
+                    responseBody['responseData']['profileImage'];
+                print(
+                    '📸 Found ProfileImage in responseData map: $loginProfileImage');
+              } else if (responseBody['responseData'] is List &&
+                  (responseBody['responseData'] as List).isNotEmpty) {
+                final firstItem = (responseBody['responseData'] as List)[0];
+                if (firstItem is Map && firstItem['profileImage'] != null) {
+                  loginProfileImage = firstItem['profileImage'];
+                  print(
+                      '📸 Found ProfileImage in responseData list[0]: $loginProfileImage');
+                }
+              } else if (responseBody['profileImage'] != null) {
+                loginProfileImage = responseBody['profileImage'];
+                print(
+                    '📸 Found ProfileImage in root response: $loginProfileImage');
+              }
+
+              if (loginProfileImage != null &&
+                  loginProfileImage.isNotEmpty &&
+                  loginProfileImage != 'Unknown') {
+                ProfileImage = loginProfileImage;
+                print(
+                    '📸 Updated ProfileImage from login response: $ProfileImage');
+              } else {
+                print(
+                    '⚠️ No valid ProfileImage found in login response, keeping existing: $ProfileImage');
+              }
             });
 
             if (productionTypeId == 3) {
+              // Update ProfileImage from login response before saving
+              String? loginProfileImage;
+
+              if (responseBody['responseData'] is Map &&
+                  responseBody['responseData']['profileImage'] != null) {
+                loginProfileImage =
+                    responseBody['responseData']['profileImage'];
+                print(
+                    '📸 Found ProfileImage in responseData map: $loginProfileImage');
+              } else if (responseBody['responseData'] is List &&
+                  (responseBody['responseData'] as List).isNotEmpty) {
+                final firstItem = (responseBody['responseData'] as List)[0];
+                if (firstItem is Map && firstItem['profileImage'] != null) {
+                  loginProfileImage = firstItem['profileImage'];
+                  print(
+                      '📸 Found ProfileImage in responseData list[0]: $loginProfileImage');
+                }
+              } else if (responseBody['profileImage'] != null) {
+                loginProfileImage = responseBody['profileImage'];
+                print(
+                    '📸 Found ProfileImage in root response: $loginProfileImage');
+              }
+
+              if (loginProfileImage != null &&
+                  loginProfileImage.isNotEmpty &&
+                  loginProfileImage != 'Unknown') {
+                ProfileImage = loginProfileImage;
+                print(
+                    '📸 Updated ProfileImage before saving (prod type 3): $ProfileImage');
+              } else {
+                print(
+                    '⚠️ No valid ProfileImage found for prod type 3, keeping existing: $ProfileImage');
+              }
+
               // Save login data to SQLite after successful login
+              print('🔄 Production type 3 - saving login data...');
               await saveLoginData();
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => Routescreen()),
-              );
+              if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Routescreen()),
+                );
+              }
             } else {
               print(productionTypeId);
               final loginVmid = loginresult?['vmid'];
               if (vmid != null && loginVmid != null && vmid == loginVmid) {
+                // Update ProfileImage from login response if available
+                String? loginProfileImage;
+
+                if (loginresult is Map &&
+                    loginresult?['profileImage'] != null) {
+                  loginProfileImage = loginresult!['profileImage'];
+                  print(
+                      '📸 Found ProfileImage in loginresult map: $loginProfileImage');
+                } else if (loginresult is List &&
+                    (loginresult as List).isNotEmpty) {
+                  final firstItem = (loginresult as List)[0];
+                  if (firstItem is Map && firstItem['profileImage'] != null) {
+                    loginProfileImage = firstItem['profileImage'];
+                    print(
+                        '📸 Found ProfileImage in loginresult list[0]: $loginProfileImage');
+                  }
+                }
+
+                if (loginProfileImage != null &&
+                    loginProfileImage.isNotEmpty &&
+                    loginProfileImage != 'Unknown') {
+                  ProfileImage = loginProfileImage;
+                  print(
+                      '📸 Updated ProfileImage from login result: $ProfileImage');
+                } else {
+                  print(
+                      '⚠️ No valid ProfileImage found in login result, keeping existing: $ProfileImage');
+                }
+
                 // Save login data to SQLite after successful login
+                print('🔄 VM ID matched - saving login data...');
                 await saveLoginData();
 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Routescreen()),
-                );
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const Routescreen()),
+                  );
+                }
               } else {
                 showmessage(
                     context,
@@ -530,7 +710,7 @@ class _LoginscreenState extends State<Loginscreen> {
           print("Error parsing error response: $e");
           showmessage(context, "Login failed", "ok");
         }
-        print(response.body);
+        print(response.body + "📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊");
       }
     } catch (e) {
       print("Error in loginr(): $e");
@@ -543,8 +723,8 @@ class _LoginscreenState extends State<Loginscreen> {
 
   @override
   void dispose() {
-    // Close database connection
-    _database?.close();
+    // Don't close database here - let it close naturally
+    // _database?.close();
     super.dispose();
   }
 

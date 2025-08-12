@@ -26,7 +26,6 @@ class _IntimeScreenBody extends StatefulWidget {
 
 class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
   String debugMessage = '';
-  bool isOffline = false; // 🔁 default is Online
 
   Future<void> handleVCID(String vcid) async {
     await AttendanceService.markAttendance(vcid);
@@ -60,12 +59,7 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const Routescreen(initialIndex: 1),
-            ),
-          ),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Builder(

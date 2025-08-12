@@ -553,6 +553,10 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                 _buildDetailRow('VM ID',
                                                     item['vmid']?.toString()),
                                                 _buildDetailRow(
+                                                    'Profile Image',
+                                                    item['profile_image']
+                                                        ?.toString()),
+                                                _buildDetailRow(
                                                     'Login Date',
                                                     _formatDate(
                                                         item['login_date'])),
