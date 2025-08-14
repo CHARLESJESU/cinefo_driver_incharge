@@ -312,8 +312,7 @@ class IntimeSyncService {
           "attendanceStatus": row['attendance_status'],
           "location": row['location'],
         });
-        print(
-            'IntimeSyncService: Sending POST request with body: $requestBody');
+
         final response = await http.post(
           processSessionRequest,
           headers: {
@@ -324,7 +323,8 @@ class IntimeSyncService {
           },
           body: requestBody,
         );
-
+        print(
+            'IntimeSyncService: Sending POST request with body: $requestBody');
         // Print response body in chunks to handle large responses
         print('📊 Response body length: ${response.body.length}');
         if (response.body.isNotEmpty) {

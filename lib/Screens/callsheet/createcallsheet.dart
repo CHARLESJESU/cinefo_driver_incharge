@@ -311,10 +311,13 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
   }
 
   Future<void> _selectDate() async {
+    final DateTime today = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
+      initialDate: selectedDate != null && selectedDate!.isAfter(today)
+          ? selectedDate!
+          : today,
+      firstDate: DateTime(today.year, today.month, today.day),
       lastDate: DateTime(2030),
     );
     if (picked != null && picked != selectedDate) {

@@ -44,8 +44,18 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final String name = callsheet['name']?.toString() ?? 'Unknown';
 
-    final String createdAt =
+    final String createdAtRaw =
         (callsheet['created_at']?.toString() ?? '').split('T').first;
+    // For display only
+    String createdAtDisplay = createdAtRaw;
+    try {
+      if (createdAtRaw.isNotEmpty) {
+        final parts = createdAtRaw.split('-');
+        if (parts.length == 3) {
+          createdAtDisplay = "${parts[2]}-${parts[1]}-${parts[0]}";
+        }
+      }
+    } catch (_) {}
     final String? id = callsheet['callSheetNo']?.toString();
     final String? location = callsheet['location']?.toString();
     final String? Moviename = callsheet['MovieName']?.toString();
@@ -56,16 +66,16 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
     final String currentDate =
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-    // Parse the createdAt date
+    // Parse the createdAtRaw date for logic
     DateTime? callsheetDate;
     try {
-      callsheetDate = DateTime.parse(createdAt);
+      callsheetDate = DateTime.parse(createdAtRaw);
     } catch (e) {
       print('Error parsing date: $e');
     }
 
     // Determine button states based on date comparison
-    bool isToday = createdAt == currentDate;
+    bool isToday = createdAtRaw == currentDate;
     bool isPastDate = false;
 
     if (callsheetDate != null) {
@@ -156,7 +166,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  createdAt,
+                                  createdAtDisplay,
                                   style: TextStyle(
                                     color: Color(0xFF2B5682),
                                     fontSize: 12,
@@ -242,7 +252,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                         SizedBox(width: 12),
                         Expanded(
                           child: Container(
-                            height: 70,
+                            height: 100,
                             padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.grey[50],
@@ -260,13 +270,27 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                Text(
-                                  location ?? 'Unknown',
-                                  style: TextStyle(
-                                    color: Color(0xFF2B5682),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                Builder(
+                                  builder: (context) {
+                                    final loc = location ?? 'Unknown';
+                                    double fontSize = 12;
+                                    if (loc.length > 40) {
+                                      fontSize = 9;
+                                    }
+                                    if (loc.length > 80) {
+                                      fontSize = 7;
+                                    }
+                                    return Text(
+                                      loc,
+                                      style: TextStyle(
+                                        color: Color(0xFF2B5682),
+                                        fontSize: fontSize,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    );
+                                  },
                                 ),
                               ],
                             ),
