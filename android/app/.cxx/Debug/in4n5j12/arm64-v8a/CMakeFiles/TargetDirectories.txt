@@ -1,0 +1,2 @@
+D:/devolop/vlab3/cinefo_production/android/app/.cxx/Debug/in4n5j12/arm64-v8a/CMakeFiles/edit_cache.dir
+D:/devolop/vlab3/cinefo_production/android/app/.cxx/Debug/in4n5j12/arm64-v8a/CMakeFiles/rebuild_cache.dir

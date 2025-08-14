@@ -23,8 +23,16 @@ class _SqlitelistState extends State<Sqlitelist> {
   }
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null && _database!.isOpen) return _database!;
     _database = await _initDatabase();
+    return _database!;
+  }
+
+  // Helper to ensure database is open, reopens if closed
+  Future<Database> ensureDatabaseOpen() async {
+    if (_database == null || !_database!.isOpen) {
+      _database = await _initDatabase();
+    }
     return _database!;
   }
 
@@ -70,7 +78,7 @@ class _SqlitelistState extends State<Sqlitelist> {
       setState(() {
         _isLoading = true;
       });
-      final db = await database;
+      final db = await ensureDatabaseOpen();
       final List<Map<String, dynamic>> maps = await db.query(
         'login_data',
         orderBy: 'login_date DESC',
@@ -82,6 +90,9 @@ class _SqlitelistState extends State<Sqlitelist> {
       });
     } catch (e) {
       print('❌ Error fetching login data: $e');
+      if (e.toString().contains('database_closed')) {
+        _database = null;
+      }
       setState(() {
         _isLoading = false;
       });
@@ -93,7 +104,7 @@ class _SqlitelistState extends State<Sqlitelist> {
       setState(() {
         _isLoading = true;
       });
-      final db = await database;
+      final db = await ensureDatabaseOpen();
       final callsheettable = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheet'");
       if (callsheettable.isEmpty) {
@@ -114,6 +125,9 @@ class _SqlitelistState extends State<Sqlitelist> {
       });
     } catch (e) {
       print('❌ Error fetching callsheet data: $e');
+      if (e.toString().contains('database_closed')) {
+        _database = null;
+      }
       setState(() {
         _isLoading = false;
       });
@@ -125,7 +139,7 @@ class _SqlitelistState extends State<Sqlitelist> {
       setState(() {
         _isLoading = true;
       });
-      final db = await database;
+      final db = await ensureDatabaseOpen();
       final intimeTable = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='intime'");
       if (intimeTable.isEmpty) {
@@ -146,6 +160,9 @@ class _SqlitelistState extends State<Sqlitelist> {
       });
     } catch (e) {
       print('❌ Error fetching intime data: $e');
+      if (e.toString().contains('database_closed')) {
+        _database = null;
+      }
       setState(() {
         _isLoading = false;
       });
@@ -154,7 +171,7 @@ class _SqlitelistState extends State<Sqlitelist> {
 
   Future<void> _clearAllData() async {
     try {
-      final db = await database;
+      final db = await ensureDatabaseOpen();
       String table = _viewMode == 0
           ? 'callsheet'
           : _viewMode == 1
@@ -197,6 +214,9 @@ class _SqlitelistState extends State<Sqlitelist> {
       }
     } catch (e) {
       print('❌ Error clearing data: $e');
+      if (e.toString().contains('database_closed')) {
+        _database = null;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error clearing data: $e'),
@@ -226,7 +246,7 @@ class _SqlitelistState extends State<Sqlitelist> {
         ),
       );
       if (confirmed == true) {
-        final db = await database;
+        final db = await ensureDatabaseOpen();
         String table = _viewMode == 0
             ? 'callsheet'
             : _viewMode == 1
@@ -250,6 +270,9 @@ class _SqlitelistState extends State<Sqlitelist> {
       }
     } catch (e) {
       print('❌ Error deleting record: $e');
+      if (e.toString().contains('database_closed')) {
+        _database = null;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error deleting record: $e'),

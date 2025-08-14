@@ -7,11 +7,38 @@ import 'package:production/Screens/configuration/configuration.dart';
 import 'package:production/Screens/callsheet/closecallsheet.dart';
 import 'package:production/variables.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 
 class OfflineCallsheetDetailScreen extends StatelessWidget {
   final Map<String, dynamic> callsheet;
   const OfflineCallsheetDetailScreen({Key? key, required this.callsheet})
       : super(key: key);
+
+  // Method to delete callsheet from SQLite database
+  Future<void> _deleteCallsheetFromDB(String callSheetNo) async {
+    try {
+      String dbPath =
+          path.join(await getDatabasesPath(), 'production_login.db');
+      Database db = await openDatabase(dbPath);
+
+      int result = await db.delete(
+        'callsheet',
+        where: 'callSheetNo = ?',
+        whereArgs: [callSheetNo],
+      );
+
+      await db.close();
+
+      if (result > 0) {
+        print('✅ Callsheet deleted successfully: $callSheetNo');
+      } else {
+        print('⚠️ No callsheet found with ID: $callSheetNo');
+      }
+    } catch (e) {
+      print('❌ Error deleting callsheet: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -41,7 +41,7 @@ class _LoginscreenState extends State<Loginscreen> {
         dbPath,
         version: 3, // Increment version to force recreation
         onCreate: (Database db, int version) async {
-          await db.execute('DROP TABLE IF EXISTS login_data');
+          // await db.execute('DROP TABLE IF EXISTS login_data');
           print('📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊hvjhjvkjhgvhjgjmnvbkjgjbvn📊');
           print('🔨 Creating login_data table...');
           await db.execute('''
@@ -62,27 +62,7 @@ class _LoginscreenState extends State<Loginscreen> {
           ''');
           print('✅ SQLite login_data table created successfully');
         },
-        onUpgrade: (Database db, int oldVersion, int newVersion) async {
-          // Drop and recreate table to include profile_image
-          // await db.execute('DROP TABLE IF EXISTS login_data');
-          await db.execute('''
-            CREATE TABLE login_data (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              manager_name TEXT,
-              profile_image TEXT,
-              registered_movie TEXT,
-              mobile_number TEXT,
-              password TEXT,
-              project_id TEXT,
-              production_type_id INTEGER,
-              production_house TEXT,
-              vmid INTEGER,
-              login_date TEXT,
-              device_id TEXT
-            )
-          ''');
-          print('✅ SQLite login_data table recreated with profile_image');
-        },
+        // onUpgrade is not needed unless you want to handle migrations
       );
 
       // Test database connectivity

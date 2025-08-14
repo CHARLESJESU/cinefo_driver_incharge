@@ -272,7 +272,7 @@ class IntimeSyncService {
   void startSync() {
     print('IntimeSyncService: startSync() called. Timer started.');
     _timer = Timer.periodic(
-        const Duration(seconds: 20), (_) => _tryPostIntimeRows());
+        const Duration(seconds: 120), (_) => _tryPostIntimeRows());
   }
 
   void stopSync() {
@@ -312,6 +312,8 @@ class IntimeSyncService {
           "attendanceStatus": row['attendance_status'],
           "location": row['location'],
         });
+        print(
+            'IntimeSyncService: Sending POST request with body: $requestBody');
         final response = await http.post(
           processSessionRequest,
           headers: {

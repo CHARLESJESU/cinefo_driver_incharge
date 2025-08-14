@@ -1,4 +1,4 @@
-package com.example.production
+package com.vlabs.cinefo_production
 
 import android.app.PendingIntent
 import android.content.Intent

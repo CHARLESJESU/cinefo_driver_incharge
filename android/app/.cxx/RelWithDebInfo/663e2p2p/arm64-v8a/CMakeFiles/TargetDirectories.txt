@@ -1,0 +1,2 @@
+D:/devolop/vlab3/vlabs2/android/app/.cxx/RelWithDebInfo/663e2p2p/arm64-v8a/CMakeFiles/edit_cache.dir
+D:/devolop/vlab3/vlabs2/android/app/.cxx/RelWithDebInfo/663e2p2p/arm64-v8a/CMakeFiles/rebuild_cache.dir
