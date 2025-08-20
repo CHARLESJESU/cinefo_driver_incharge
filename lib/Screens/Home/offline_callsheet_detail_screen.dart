@@ -42,6 +42,12 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Set global callsheetid to the current callsheet's callSheetId
+    try {
+      callsheetid = callsheet['callSheetId'];
+    } catch (_) {
+      callsheetid = null;
+    }
     final String name = callsheet['name']?.toString() ?? 'Unknown';
 
     final String createdAtRaw =

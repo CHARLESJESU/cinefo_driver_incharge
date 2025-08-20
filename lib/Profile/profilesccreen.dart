@@ -116,21 +116,6 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 10),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5)),
-                  ),
-                  child: const Text('View ID Card'),
-                ),
                 const Divider(color: Colors.white24, height: 30, thickness: 1),
                 buildProfileField('Name', loginData?["manager_name"] ?? ''),
                 buildProfileField('Mobile', loginData?["mobile_number"] ?? ''),

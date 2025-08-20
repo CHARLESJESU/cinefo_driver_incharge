@@ -62,7 +62,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     final dbPath = await getDatabasesPath();
     final db = await openDatabase(path.join(dbPath, 'production_login.db'));
     // Drop the old table if it exists to ensure schema is correct
-    // await db.execute('DROP TABLE IF EXISTS intime');
+    //   await db.execute('DROP TABLE IF EXISTS intime');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS intime (
@@ -76,7 +76,8 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         latitude TEXT,
         longitude TEXT,
         location TEXT,
-        attendance_status TEXT
+        attendance_status TEXT,
+        callsheetid INTEGER
       )
     ''');
     await db.insert('intime', data);
@@ -184,7 +185,8 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         'latitude': position.latitude.toString(),
         'longitude': position.longitude.toString(),
         'location': location ?? "Unknown",
-        'attendance_status': widget.attendanceStatus
+        'attendance_status': widget.attendanceStatus,
+        'callsheetid': callsheetid,
       };
       final lines = widget.message.split('\n');
       for (final line in lines) {
@@ -272,7 +274,7 @@ class IntimeSyncService {
   void startSync() {
     print('IntimeSyncService: startSync() called. Timer started.');
     _timer = Timer.periodic(
-        const Duration(seconds: 120), (_) => _tryPostIntimeRows());
+        const Duration(seconds: 40), (_) => _tryPostIntimeRows());
   }
 
   void stopSync() {
@@ -303,7 +305,7 @@ class IntimeSyncService {
         print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
         final requestBody = jsonEncode({
           "data": row['vcid'],
-          "callsheetid": productionTypeId == 3 ? 0 : callsheetid,
+          "callsheetid": productionTypeId == 3 ? 0 : row['callsheetid'],
           "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
           "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
           "doubing": {},
@@ -313,13 +315,32 @@ class IntimeSyncService {
           "location": row['location'],
         });
 
+        // Get VSID from loginresponsebody or fallback to SQLite
+        String? vsid = loginresponsebody?['vsid']?.toString();
+        if (vsid == null || vsid.isEmpty) {
+          try {
+            final dbPath = await getDatabasesPath();
+            final db =
+                await openDatabase(path.join(dbPath, 'production_login.db'));
+            final List<Map<String, dynamic>> loginRows =
+                await db.query('login_data', orderBy: 'id ASC', limit: 1);
+            if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
+              vsid = loginRows.first['vsid'].toString();
+            }
+            await db.close();
+          } catch (e) {
+            print('Error fetching vsid from SQLite: $e');
+          }
+        }
+        print("📊📊📊📊📊📊📊📊📊📊 VSID: $vsid");
+        print("📊📊📊📊📊📊📊📊📊📊 Request Body: $processSessionRequest");
         final response = await http.post(
           processSessionRequest,
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
             'VMETID':
                 "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
-            'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+            'VSID': vsid ?? "",
           },
           body: requestBody,
         );
@@ -340,18 +361,25 @@ class IntimeSyncService {
           print('📊 Response body is empty');
         }
 
-        print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
-        if (response.statusCode == 200) {
+        print('IntimeSyncService: POST statusCode=\${response.statusCode}');
+        if (response.statusCode == 200 || response.statusCode == 1017) {
           print(
-              'IntimeSyncService: Deleting row id=\\${row['id']} after successful POST.');
+              "IntimeSyncService: Deleting row id=${row['id']} after successful POST.");
           try {
             await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
           } catch (e) {
             print('❌ Error deleting record: $e');
           }
+        } else if (response.statusCode == -1 ||
+            response.statusCode == 400 ||
+            response.statusCode == 500) {
+          print(
+              "IntimeSyncService: Skipping row id=${row['id']} due to statusCode=${response.statusCode}. Data not deleted.");
+          // Skip this row, do not delete, continue to next row
+          continue;
         } else {
           print(
-              'IntimeSyncService: POST failed for row id=\\${row['id']}, stopping sync this cycle.');
+              "IntimeSyncService: POST failed for row id=${row['id']}, stopping sync this cycle.");
           // Stop on first failure to preserve FIFO
           break;
         }

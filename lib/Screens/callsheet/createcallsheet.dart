@@ -353,12 +353,26 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     setState(() {
       _isLoading = true;
     });
+    // Fetch project_id from login_data table
+    String? sqliteProjectId;
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      final List<Map<String, dynamic>> loginRows =
+          await db.query('login_data', orderBy: 'id ASC', limit: 1);
+      if (loginRows.isNotEmpty && loginRows.first['project_id'] != null) {
+        sqliteProjectId = loginRows.first['project_id'].toString();
+      }
+      await db.close();
+    } catch (e) {
+      print('Error fetching project_id from SQLite: $e');
+    }
     final payload = {
       "name": _nameController.text,
       "shiftId": selectedShiftId,
       "latitude": selectedLatitude,
       "longitude": selectedLongitude,
-      "projectId": projectId,
+      "projectId": sqliteProjectId ?? projectId,
       "vmid": loginresult!['vmid'],
       "vpid": loginresult!['vpid'],
       "vpoid": loginresponsebody!['vpoid'],

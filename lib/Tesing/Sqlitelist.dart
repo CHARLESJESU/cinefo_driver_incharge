@@ -570,6 +570,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     'Production Type ID',
                                                     item['production_type_id']
                                                         ?.toString()),
+                                                _buildDetailRow('VSID',
+                                                    item['vsid']?.toString()),
                                                 _buildDetailRow(
                                                     'Production House',
                                                     item['production_house']),
@@ -597,6 +599,10 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     item['unionName']),
                                                 _buildDetailRow(
                                                     'VCID', item['vcid']),
+                                                _buildDetailRow(
+                                                    'CallsheetID',
+                                                    item['callsheetid']
+                                                        ?.toString()),
                                                 _buildDetailRow(
                                                   'Marked At',
                                                   _formatDate(

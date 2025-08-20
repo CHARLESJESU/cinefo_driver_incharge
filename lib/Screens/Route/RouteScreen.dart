@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
-import 'package:production/Screens/Home/colorcode.dart';
-import 'package:production/Tesing/Sqlitelist.dart';
+import 'package:production/Screens/Trip/trip.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
 import 'package:production/variables.dart';
@@ -64,8 +63,8 @@ class _RoutescreenState extends State<Routescreen> {
                           label: 'Reports',
                         ),
                         // BottomNavigationBarItem(
-                        //   icon: Icon(Icons.calendar_month),
-                        //   label: 'Tesing',
+                        //   icon: Icon(Icons.trip_origin),
+                        //   label: 'Trip',
                         // ),
                       ],
                       currentIndex: _currentIndex,
@@ -106,7 +105,7 @@ class _RoutescreenState extends State<Routescreen> {
           callsheetid: callsheetid.toString(),
         );
       // case 3:
-      //   return Sqlitelist();
+      //   return TripScreen();
       default:
         return const MovieListScreen();
     }

@@ -1,0 +1,2 @@
+D:/devolop/vlab3/cinefo_production/android/app/.cxx/RelWithDebInfo/5467442s/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/devolop/vlab3/cinefo_production/android/app/.cxx/RelWithDebInfo/5467442s/armeabi-v7a/CMakeFiles/rebuild_cache.dir

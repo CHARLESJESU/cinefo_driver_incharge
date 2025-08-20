@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
@@ -245,6 +246,8 @@ class _CloseCallSheetState extends State<CloseCallSheet> {
       "callSheetStatusId": 3,
       "callSheetTime": _timeController.text
     };
+
+    // main response
     final response = await http.post(
       processSessionRequest,
       headers: <String, String>{
@@ -276,6 +279,19 @@ class _CloseCallSheetState extends State<CloseCallSheet> {
       closecallsheetresponse = json.decode(response.body);
 
       if (closecallsheetresponse!['message'] == "Success") {
+        // Delete the closed call sheet from local SQLite callsheet table
+        try {
+          final dbPath = await getDatabasesPath();
+          final db =
+              await openDatabase(path.join(dbPath, 'production_login.db'));
+          await db.delete('callsheet',
+              where: 'callSheetId = ?', whereArgs: [callsheetid.toString()]);
+          await db.close();
+          print(
+              '🗑️ Call sheet $callsheetid deleted from local callsheet table');
+        } catch (e) {
+          print('❌ Error deleting call sheet from local DB: $e');
+        }
         showsuccessPopUp(context, "callsheet closed successfully", () {
           Navigator.push(
             context,
