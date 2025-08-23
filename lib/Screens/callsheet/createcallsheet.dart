@@ -384,6 +384,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
       "created_at":
           selectedDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
+    location = _locationController.text;
     final response = await http.post(
       processSessionRequest,
       headers: {

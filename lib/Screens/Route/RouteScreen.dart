@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
-import 'package:production/Screens/Trip/trip.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
 import 'package:production/variables.dart';

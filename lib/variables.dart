@@ -6,6 +6,7 @@ TextEditingController loginmobilenumber = TextEditingController();
 TextEditingController loginpassword = TextEditingController();
 Map? loginresponsebody;
 Map? loginresult;
+String? location;
 Map? getdeviceidresponse;
 int? vmid;
 String? productionHouse;
