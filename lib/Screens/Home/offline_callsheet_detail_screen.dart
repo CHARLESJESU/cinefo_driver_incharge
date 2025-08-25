@@ -48,7 +48,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
     } catch (_) {
       callsheetid = null;
     }
-    final String name = callsheet['name']?.toString() ?? 'Unknown';
+    final String name = callsheet['callsheetname']?.toString() ?? 'Unknown';
 
     final String createdAtRaw =
         (callsheet['created_at']?.toString() ?? '').split('T').first;

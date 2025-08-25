@@ -361,7 +361,7 @@ class IntimeSyncService {
           print('📊 Response body is empty');
         }
 
-        print('IntimeSyncService: POST statusCode=\${response.statusCode}');
+        print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
         if (response.statusCode == 200 || response.statusCode == 1017) {
           print(
               "IntimeSyncService: Deleting row id=${row['id']} after successful POST.");

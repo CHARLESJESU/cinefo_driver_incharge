@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
+import 'package:production/Screens/callsheet/offlinecreatecallsheet.dart';
 import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
@@ -53,10 +54,10 @@ class _MyHomescreenState extends State<MyHomescreen> {
       }
       // Fetch callsheet table (if exists)
       final callsheetTable = await db.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheet'");
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheetoffline'");
       if (callsheetTable.isNotEmpty) {
         final List<Map<String, dynamic>> callsheetMaps = await db.query(
-          'callsheet',
+          'callsheetoffline',
           orderBy: 'created_at DESC',
         );
         setState(() {
@@ -344,6 +345,19 @@ class _MyHomescreenState extends State<MyHomescreen> {
               ),
             ),
             actions: [
+              IconButton(
+                icon: Icon(Icons.add),
+                color: Colors.white,
+                iconSize: 24,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OfflineCreateCallSheet(),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 icon: Icon(Icons.notifications),
                 color: Colors.white,
