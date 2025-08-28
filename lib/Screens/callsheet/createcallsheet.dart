@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as path;
+// import 'package:sqflite/sqflite.dart';
+// import 'package:path/path.dart' as path;
 import '../../Tesing/Sqlitelist.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -23,119 +23,6 @@ class CreateCallSheet extends StatefulWidget {
 
 class _CreateCallSheetState extends State<CreateCallSheet> {
   bool _isLoading = false;
-  bool _saveOffline = false;
-  // SQLite helpers for callsheet table
-  Future<Database> get _callsheetDb async {
-    String dbPath = path.join(await getDatabasesPath(), 'production_login.db');
-    return openDatabase(
-      dbPath,
-      version: 2, // Increment version to trigger onUpgrade
-      onOpen: (db) async {
-        // Drop the existing callsheet table if it exists and recreate with all columns
-        // await db.execute('DROP TABLE IF EXISTS callsheet');
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS callsheet (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            callSheetId INTEGER,
-            callSheetNo TEXT,
-            MovieName TEXT,
-            projectName TEXT,
-            name TEXT,
-            shift TEXT,
-            shiftId INTEGER,
-            latitude REAL,
-            longitude REAL,
-            projectId TEXT,
-            vmid TEXT,
-            vpid TEXT,
-            vpoid TEXT,
-            vbpid TEXT,
-            productionTypeid INTEGER,
-            location TEXT,
-            locationType TEXT,
-            locationTypeId INTEGER,
-            created_at TEXT
-          )
-        ''');
-      },
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS callsheet (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            callSheetId INTEGER,
-            callSheetNo TEXT,
-            MovieName TEXT,
-            projectName TEXT,
-            name TEXT,
-            shift TEXT,
-            shiftId INTEGER,
-            latitude REAL,
-            longitude REAL,
-            projectId TEXT,
-            vmid TEXT,
-            vpid TEXT,
-            vpoid TEXT,
-            vbpid TEXT,
-            productionTypeid INTEGER,
-            location TEXT,
-            locationType TEXT,
-            locationTypeId INTEGER,
-            created_at TEXT
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        // Drop and recreate table with all required columns
-        // await db.execute('DROP TABLE IF EXISTS callsheet');
-        await db.execute('''
-          CREATE TABLE callsheet (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            callSheetId INTEGER,
-            callSheetNo TEXT,
-            MovieName TEXT,
-            projectName TEXT,
-            name TEXT,
-            shift TEXT,
-            shiftId INTEGER,
-            latitude REAL,
-            longitude REAL,
-            projectId TEXT,
-            vmid TEXT,
-            vpid TEXT,
-            vpoid TEXT,
-            vbpid TEXT,
-            productionTypeid INTEGER,
-            location TEXT,
-            locationType TEXT,
-            locationTypeId INTEGER,
-            created_at TEXT
-          )
-        ''');
-        print('✅ Callsheet table recreated with all required columns');
-      },
-    );
-  }
-
-  Future<void> saveCallsheetToSQLite(Map<String, dynamic> data) async {
-    try {
-      print('💾 Attempting to save to SQLite: $data');
-      final db = await _callsheetDb;
-
-      // Verify table structure
-      final tableInfo = await db.rawQuery('PRAGMA table_info(callsheet)');
-      print('📋 Table structure: $tableInfo');
-
-      final result = await db.insert('callsheet', data,
-          conflictAlgorithm: ConflictAlgorithm.replace);
-
-      print('✅ Successfully saved to SQLite with ID: $result');
-      await db.close();
-    } catch (e) {
-      print('❌ Error saving to SQLite: $e');
-      print('❌ Data being saved: $data');
-      rethrow;
-    }
-  }
 
   bool screenLoading = false;
   TextEditingController _nameController = TextEditingController();
@@ -353,26 +240,12 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
     setState(() {
       _isLoading = true;
     });
-    // Fetch project_id from login_data table
-    String? sqliteProjectId;
-    try {
-      final dbPath = await getDatabasesPath();
-      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
-      final List<Map<String, dynamic>> loginRows =
-          await db.query('login_data', orderBy: 'id ASC', limit: 1);
-      if (loginRows.isNotEmpty && loginRows.first['project_id'] != null) {
-        sqliteProjectId = loginRows.first['project_id'].toString();
-      }
-      await db.close();
-    } catch (e) {
-      print('Error fetching project_id from SQLite: $e');
-    }
     final payload = {
       "name": _nameController.text,
       "shiftId": selectedShiftId,
       "latitude": selectedLatitude,
       "longitude": selectedLongitude,
-      "projectId": sqliteProjectId ?? projectId,
+      "projectId": projectId,
       "vmid": loginresult!['vmid'],
       "vpid": loginresult!['vpid'],
       "vpoid": loginresponsebody!['vpoid'],
@@ -412,38 +285,6 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
 
       createCallSheetresponse1 = json.decode(response.body);
       if (createCallSheetresponse1!['message'] == "Success") {
-        // Add callSheetId and callSheetNo from response to payload before saving to SQLite
-        if (_saveOffline) {
-          final responseData = createCallSheetresponse1!['responseData'];
-          final int? callSheetId =
-              responseData != null && responseData['callSheetId'] != null
-                  ? int.tryParse(responseData['callSheetId'].toString())
-                  : null;
-          final String? callSheetNo =
-              responseData != null && responseData['callSheetNo'] != null
-                  ? responseData['callSheetNo'].toString()
-                  : null;
-          final String? movieName =
-              responseData != null && responseData['projectName'] != null
-                  ? responseData['projectName'].toString()
-                  : registeredMovie; // fallback to existing value
-          final String? shiftName =
-              responseData != null && responseData['shift'] != null
-                  ? responseData['shift'].toString()
-                  : selectedShift; // fallback to selected shift
-
-          final Map<String, dynamic> sqlitePayload =
-              Map<String, dynamic>.from(payload);
-          sqlitePayload['callSheetId'] = callSheetId;
-          sqlitePayload['callSheetNo'] = callSheetNo;
-          sqlitePayload['MovieName'] = movieName;
-          sqlitePayload['projectName'] =
-              movieName; // same value for both fields
-          sqlitePayload['shift'] = shiftName;
-
-          print('📝 SQLite payload: $sqlitePayload');
-          await saveCallsheetToSQLite(sqlitePayload);
-        }
         showsuccessPopUp(context, "created call sheet successfully", () {
           Navigator.pop(context);
         });
@@ -891,30 +732,7 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
                                                   ),
                                                 ),
                                               ),
-                                              Row(
-                                                children: [
-                                                  Checkbox(
-                                                    value: _saveOffline,
-                                                    onChanged: (val) {
-                                                      setState(() {
-                                                        _saveOffline =
-                                                            val ?? false;
-                                                      });
-                                                    },
-                                                  ),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Enable Offline Mode',
-                                                      style: TextStyle(
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w500),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                              // Offline mode checkbox removed
                                             ],
                                           ),
                                         ),

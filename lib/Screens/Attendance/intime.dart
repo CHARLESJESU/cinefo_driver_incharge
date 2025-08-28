@@ -23,12 +23,6 @@ class _IntimeScreenBody extends StatefulWidget {
 
 class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
   String debugMessage = '';
-
-  // Future<void> handleVCID(String vcid) async {
-  //   await AttendanceService.markAttendance(vcid);
-  //   updateDebugMessage("Marked Attendance Online: $vcid");
-  // }
-
   void updateDebugMessage(String msg) {
     if (mounted) {
       setState(() {

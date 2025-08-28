@@ -59,29 +59,45 @@ class _CountdownDialog extends StatefulWidget {
 
 class _CountdownDialogState extends State<_CountdownDialog> {
   Future<void> saveIntimeToSQLite(Map<String, dynamic> data) async {
-    final dbPath = await getDatabasesPath();
-    final db = await openDatabase(path.join(dbPath, 'production_login.db'));
-    // Drop the old table if it exists to ensure schema is correct
-    //   await db.execute('DROP TABLE IF EXISTS intime');
+    print('DEBUG: saveIntimeToSQLite started');
+    try {
+      final dbPath = await getDatabasesPath();
+      print('DEBUG: Database path: $dbPath');
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      print('DEBUG: Database opened successfully');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS intime (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        designation TEXT,
-        code TEXT,
-        unionName TEXT,
-        vcid TEXT,
-        marked_at TEXT,
-        latitude TEXT,
-        longitude TEXT,
-        location TEXT,
-        attendance_status TEXT,
-        callsheetid INTEGER
-      )
-    ''');
-    await db.insert('intime', data);
-    await db.close();
+      // Drop the old table if it exists to ensure schema is correct
+      // await db.execute('DROP TABLE IF EXISTS intime');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS intime (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          designation TEXT,
+          code TEXT,
+          unionName TEXT,
+          vcid TEXT,
+          marked_at TEXT,
+          latitude TEXT,
+          longitude TEXT,
+          location TEXT,
+          attendance_status TEXT,
+          callsheetid INTEGER,
+          mode TEXT
+        )
+      ''');
+      print('DEBUG: Table created/verified successfully');
+
+      await db.insert('intime', data);
+      print('DEBUG: Data inserted successfully: $data');
+
+      await db.close();
+      print('DEBUG: Database closed successfully');
+    } catch (e) {
+      print('ERROR in saveIntimeToSQLite: $e');
+      print('ERROR stack trace: ${e.toString()}');
+      rethrow;
+    }
   }
 
   String? latitude, longitude, location;
@@ -161,66 +177,111 @@ class _CountdownDialogState extends State<_CountdownDialog> {
 // --- Background FIFO sync service ---
 
   Future<void> markattendance(String vcid) async {
+    print('DEBUG: markattendance started with vcid: $vcid');
     setState(() {
       first = true;
     });
-    if (_attendanceMarked) return;
+    if (_attendanceMarked) {
+      print('DEBUG: Attendance already marked, returning');
+      return;
+    }
     setState(() => _isloading = true);
     _attendanceMarked = true;
 
     try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      print("markattendance called with vcid: $vcid");
-
-      // 1. Prepare the data to save
-      Map<String, dynamic> intimeData = {
-        'name': '',
-        'designation': '',
-        'code': '',
-        'unionName': '',
-        'vcid': vcid,
-        'marked_at': DateTime.now().toIso8601String(),
-        'latitude': position.latitude.toString(),
-        'longitude': position.longitude.toString(),
-        'location': location ?? "Unknown",
-        'attendance_status': widget.attendanceStatus,
-        'callsheetid': callsheetid,
-      };
+      print('DEBUG: Starting data extraction from message');
+      // Extract NFC fields from widget.message
+      String name = '', designation = '', code = '', unionName = '';
       final lines = widget.message.split('\n');
       for (final line in lines) {
         if (line.startsWith('Name:'))
-          intimeData['name'] = line.replaceFirst('Name:', '').trim();
+          name = line.replaceFirst('Name:', '').trim();
         if (line.startsWith('Designation:'))
-          intimeData['designation'] =
-              line.replaceFirst('Designation:', '').trim();
+          designation = line.replaceFirst('Designation:', '').trim();
         if (line.startsWith('Code:'))
-          intimeData['code'] = line.replaceFirst('Code:', '').trim();
+          code = line.replaceFirst('Code:', '').trim();
         if (line.startsWith('Union Name:'))
-          intimeData['unionName'] = line.replaceFirst('Union Name:', '').trim();
+          unionName = line.replaceFirst('Union Name:', '').trim();
+      }
+      print(
+          'DEBUG: Extracted data - Name: $name, Designation: $designation, Code: $code, Union: $unionName');
+
+      // Get current location if available
+      print('DEBUG: Getting location data');
+      String? lat = latitude, lon = longitude, loc = location;
+      if (lat == null || lon == null || loc == null) {
+        print('DEBUG: Location not available, fetching current location');
+        try {
+          Position position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
+          lat = position.latitude.toString();
+          lon = position.longitude.toString();
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+              position.latitude, position.longitude);
+          Placemark place = placemarks[0];
+          loc =
+              "${place.name}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
+          print(
+              'DEBUG: Location fetched - Lat: $lat, Lon: $lon, Location: $loc');
+        } catch (e) {
+          print('DEBUG: Error fetching location: $e');
+          lat = '';
+          lon = '';
+          loc = '';
+        }
+      } else {
+        print(
+            'DEBUG: Using cached location - Lat: $lat, Lon: $lon, Location: $loc');
       }
 
-      // 2. Save to SQLite only (do not post here)
-      await saveIntimeToSQLite(intimeData);
+      print('DEBUG: Creating intime data object');
+      Map<String, dynamic> intimeData = {
+        'name': name,
+        'designation': designation,
+        'code': code,
+        'unionName': unionName,
+        'vcid': vcid,
+        'marked_at': DateTime.now().toIso8601String(),
+        'latitude': lat,
+        'longitude': lon,
+        'location': loc,
+        'attendance_status': widget.attendanceStatus,
+        'callsheetid': callsheetid,
+        'mode': isoffline ? 'offline' : 'online',
+      };
+      print('DEBUG: Intime data created: $intimeData');
 
+      print('DEBUG: Saving to SQLite');
+      await saveIntimeToSQLite(intimeData);
+      print('DEBUG: SQLite save completed');
+
+      if (!mounted) {
+        print('DEBUG: Widget not mounted, returning');
+        return;
+      }
+
+      print('DEBUG: Setting response message');
       setState(() {
         first = false;
         responseMessage = "Attendance stored locally.";
       });
+      print('DEBUG: Response message set, scheduling dialog close');
 
       // Close dialog immediately after showing success message
       Future.delayed(Duration(milliseconds: 800), () {
+        print('DEBUG: Closing dialog');
         if (mounted) {
           Navigator.of(context).pop();
           widget.onDismissed();
         }
       });
     } catch (e) {
-      print('Error in markattendance: $e');
+      print('ERROR in markattendance: $e');
+      print('ERROR stack trace: ${e.toString()}');
     } finally {
       if (!mounted) return;
       setState(() => _isloading = false);
+      print('DEBUG: markattendance completed');
     }
   }
 
@@ -298,9 +359,11 @@ class IntimeSyncService {
       db = await openDatabase(path.join(dbPath, 'production_login.db'));
       final List<Map<String, dynamic>> rows = await db.query(
         'intime',
+        where: 'mode = ?',
+        whereArgs: ['online'],
         orderBy: 'id ASC', // FIFO
       );
-      print('IntimeSyncService: Found \\${rows.length} rows to sync.');
+      print('IntimeSyncService: Found \\${rows.length} online rows to sync.');
       for (final row in rows) {
         print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
         final requestBody = jsonEncode({

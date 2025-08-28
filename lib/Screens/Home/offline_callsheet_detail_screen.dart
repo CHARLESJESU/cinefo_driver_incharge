@@ -16,27 +16,40 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
       : super(key: key);
 
   // Method to delete callsheet from SQLite database
-  Future<void> _deleteCallsheetFromDB(String callSheetNo) async {
+  Future<void> _deleteCallsheetFromDB(
+      String callSheetNo, BuildContext context) async {
     try {
       String dbPath =
           path.join(await getDatabasesPath(), 'production_login.db');
       Database db = await openDatabase(dbPath);
-
-      int result = await db.delete(
-        'callsheet',
+      // Check if 'status' column exists in callsheetoffline
+      final columns = await db.rawQuery("PRAGMA table_info(callsheetoffline)");
+      final hasStatus = columns.any((col) => col['name'] == 'status');
+      if (!hasStatus) {
+        // Add the status column if it doesn't exist
+        await db.execute("ALTER TABLE callsheetoffline ADD COLUMN status TEXT");
+      }
+      // Debug: print all callSheetNo values in callsheetoffline
+      final allRows = await db.query('callsheetoffline');
+      print('All callSheetNo in callsheetoffline:');
+      for (var row in allRows) {
+        print(row['callSheetNo']);
+      }
+      int result = await db.update(
+        'callsheetoffline',
+        {'status': 'closed'},
         where: 'callSheetNo = ?',
         whereArgs: [callSheetNo],
       );
-
       await db.close();
-
       if (result > 0) {
-        print('✅ Callsheet deleted successfully: $callSheetNo');
+        print('✅ Callsheet status set to closed: $callSheetNo');
+        Navigator.pop(context);
       } else {
         print('⚠️ No callsheet found with ID: $callSheetNo');
       }
     } catch (e) {
-      print('❌ Error deleting callsheet: $e');
+      print('❌ Error updating callsheet status: $e');
     }
   }
 
@@ -323,6 +336,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                             passProjectidresponse?[
                                                     'errordescription'] !=
                                                 "No Record found")) {
+                                      isoffline = true;
                                       Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -360,7 +374,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                                       create: (_) =>
                                                           NFCNotifier(),
                                                       child:
-                                                          Outtimecharles())));
+                                                          const IntimeScreen())));
                                     }
                                   }
                                 : null, // Disable tap when not enabled
@@ -407,12 +421,10 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                       child: GestureDetector(
                         onTap: enableCloseButton
                             ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const CloseCallSheet(),
-                                  ),
-                                );
+                                // First update the local DB status and pop if successful
+                                if (id != null) {
+                                  _deleteCallsheetFromDB(id, context);
+                                }
                               }
                             : null, // Disable tap for future dates
                         child: Container(

@@ -7,6 +7,7 @@ TextEditingController loginpassword = TextEditingController();
 Map? loginresponsebody;
 Map? loginresult;
 String? location;
+bool isoffline = false;
 Map? getdeviceidresponse;
 int? vmid;
 String? productionHouse;

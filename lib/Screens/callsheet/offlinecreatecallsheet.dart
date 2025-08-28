@@ -56,7 +56,7 @@ class _OfflineCreateCallSheetState extends State<OfflineCreateCallSheet> {
         'created_at': selectedDate != null
             ? "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
             : DateTime.now().toIso8601String(),
-        'status': 'offline',
+        'status': 'open',
       };
 
       await db.insert('callsheetoffline', data);
@@ -64,6 +64,7 @@ class _OfflineCreateCallSheetState extends State<OfflineCreateCallSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Callsheet created successfully!')),
       );
+      Navigator.of(context).pop();
       setState(() => _isLoading = false);
       // Optionally clear fields or pop screen
     } catch (e) {
@@ -216,9 +217,22 @@ class _OfflineCreateCallSheetState extends State<OfflineCreateCallSheet> {
                                           shiftList.firstWhere(
                                         (shift) => shift['shift'] == shiftName,
                                       );
+                                      // Extract label from shift string, e.g., '6AM - 6PM (Regular)' => 'Regular'
+                                      String label = '';
+                                      final RegExp labelRegExp =
+                                          RegExp(r'\(([^)]+)\)');
+                                      final match =
+                                          labelRegExp.firstMatch(shiftName);
+                                      if (match != null &&
+                                          match.groupCount >= 1) {
+                                        label = match.group(1)!;
+                                      } else {
+                                        label = shiftName; // fallback
+                                      }
                                       setState(() {
                                         selectedShift = shiftName;
                                         selectedShiftId = shiftData['shiftId'];
+                                        _nameController.text = label;
                                       });
                                     }
                                   },

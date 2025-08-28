@@ -6,6 +6,9 @@ import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
+import 'package:production/Screens/Home/importantfunc.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:io';
 
 class MyHomescreen extends StatefulWidget {
   const MyHomescreen({super.key});
@@ -562,6 +565,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                                   (item['created_at']?.toString() ?? '')
                                       .split('T')
                                       .first,
+                                  item['status']?.toString() ?? '',
                                   callsheetData: item,
                                 ))
                           else
@@ -612,18 +616,20 @@ class _MyHomescreenState extends State<MyHomescreen> {
   // Helper method to get initial 3 list items
 
   // Helper method to build individual list item
-  Widget _buildListItem(String code, String timing, String date,
+  Widget _buildListItem(String code, String timing, String date, String status,
       {Map<String, dynamic>? callsheetData}) {
     return GestureDetector(
       onTap: () {
         if (callsheetData != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  OfflineCallsheetDetailScreen(callsheet: callsheetData),
-            ),
-          );
+          if (status == 'open') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    OfflineCallsheetDetailScreen(callsheet: callsheetData),
+              ),
+            );
+          }
         }
       },
       child: Container(
@@ -664,6 +670,66 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       color: Colors.grey[600],
                     ),
                   ),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (status.toLowerCase() == 'closed')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF2B5682),
+                          foregroundColor: Colors.white,
+                          minimumSize: Size(80, 32),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () async {
+                          bool internetAvailable = false;
+                          try {
+                            var connectivityResult =
+                                await Connectivity().checkConnectivity();
+                            if (connectivityResult ==
+                                    ConnectivityResult.mobile ||
+                                connectivityResult == ConnectivityResult.wifi) {
+                              internetAvailable = true;
+                            }
+                          } catch (e) {
+                            // fallback: try to ping google
+                            try {
+                              final result =
+                                  await InternetAddress.lookup('google.com');
+                              if (result.isNotEmpty &&
+                                  result[0].rawAddress.isNotEmpty) {
+                                internetAvailable = true;
+                              }
+                            } catch (_) {
+                              internetAvailable = false;
+                            }
+                          }
+                          if (internetAvailable) {
+                            // ignore: use_build_context_synchronously
+                            await createCallSheetFromOffline(
+                                callsheetData ?? {}, context);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Internet is not available'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        child: Text('Execute'),
+                      ),
+                    ),
                 ],
               ),
             ),

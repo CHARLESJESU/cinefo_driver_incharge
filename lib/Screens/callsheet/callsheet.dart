@@ -485,6 +485,7 @@ class _CallSheetState extends State<CallSheet> {
                                                   passProjectidresponse?[
                                                           'errordescription'] !=
                                                       "No Record found")) {
+                                            isoffline = false;
                                             Navigator.push(
                                                 context,
                                                 MaterialPageRoute(

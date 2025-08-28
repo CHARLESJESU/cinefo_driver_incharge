@@ -573,11 +573,17 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                    'Location: \\${item['location'] ?? 'N/A'}',
+                                                    'Location: ${item['location'] ?? 'N/A'}',
                                                     style: TextStyle(
                                                         fontSize: 14)),
                                                 Text(
-                                                    'Date: \\${_formatDate(item['created_at'])}',
+                                                    'Date: ${_formatDate(item['created_at'])}',
+                                                    style: TextStyle(
+                                                        fontSize: 12,
+                                                        color:
+                                                            Colors.grey[600])),
+                                                Text(
+                                                    'Status: ${item['status'] ?? 'N/A'}',
                                                     style: TextStyle(
                                                         fontSize: 12,
                                                         color:
@@ -699,6 +705,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                         'attendance_status',
                                                         item[
                                                             'attendance_status']),
+                                                    _buildDetailRow(
+                                                        'Mode', item['mode']),
                                                   ]
                                                 : [
                                                     _buildDetailRow(
