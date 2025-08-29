@@ -13,6 +13,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 
 class CreateCallSheet extends StatefulWidget {
   const CreateCallSheet({super.key});
@@ -194,6 +196,30 @@ class _CreateCallSheetState extends State<CreateCallSheet> {
         return "Out-Side City";
       default:
         return "Unknown";
+    }
+  }
+
+  Future<void> printVSIDFromLoginData() async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      final List<Map<String, dynamic>> loginRows =
+          await db.query('login_data', orderBy: 'id ASC', limit: 1);
+      if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
+        print('Fetched VSID from login_data: \\${loginRows.first['vsid']}');
+        vsid = loginRows.first['vsid'];
+        projectId = loginRows.first['project_id'];
+        vmid = loginRows.first['vmid'];
+        vpid = loginRows.first['vpid'];
+        vpoid = loginRows.first['vpoid'];
+        vbpid = loginRows.first['vbpid'];
+        productionTypeId = loginRows.first['production_type_id'];
+      } else {
+        print('VSID not found in login_data table.');
+      }
+      await db.close();
+    } catch (e) {
+      print('Error fetching VSID from login_data: \\${e.toString()}');
     }
   }
 

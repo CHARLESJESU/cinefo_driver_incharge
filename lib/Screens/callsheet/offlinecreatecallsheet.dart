@@ -11,6 +11,37 @@ class OfflineCreateCallSheet extends StatefulWidget {
 
 class _OfflineCreateCallSheetState extends State<OfflineCreateCallSheet> {
   Future<void> _createCallSheet() async {
+    // Validate all required fields
+    if (selectedShift == null || selectedShift!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a shift.')),
+      );
+      return;
+    }
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter callsheet name.')),
+      );
+      return;
+    }
+    if (selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a date.')),
+      );
+      return;
+    }
+    if (_locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter location.')),
+      );
+      return;
+    }
+    if (selectedShiftId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Shift ID is missing. Please reselect shift.')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final db = await _callsheetDb;

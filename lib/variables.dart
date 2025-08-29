@@ -4,12 +4,12 @@ Map? baseurlresponsebody;
 Map? baseurlresult;
 TextEditingController loginmobilenumber = TextEditingController();
 TextEditingController loginpassword = TextEditingController();
-Map? loginresponsebody;
+
 Map? loginresult;
 String? location;
 bool isoffline = false;
 Map? getdeviceidresponse;
-int? vmid;
+
 String? productionHouse;
 String? projectId;
 String? managerName;
@@ -23,6 +23,7 @@ String? selectedProjectId;
 String? selectedProjectTitle;
 Map? shiftresponse1;
 String? vcid;
+String? vsid;
 List<Map<String, dynamic>> updatedDubbingConfigs = [];
 List<Map<String, dynamic>> dubbingConfigs = [];
 int mainCharacter = 0;
@@ -48,3 +49,25 @@ final processSessionRequest =
 Map? closecallsheetresponse;
 Map<String, int> dubbingConfigStates = {};
 Map<String, int> finalDoubingMap = {};
+
+// Charles made Variables
+Map? baseurlresultbody;
+Map? loginresponsebody;
+String? ProfileImage;
+String? Platformlogo;
+String? vpid;
+int? vmid;
+int? vuid;
+int? mtypeId;
+int? vmTypeId;
+int? vpoid;
+int? vbpid;
+int? vsubid;
+int? vpidpo;
+int? vpidbp;
+int? unitid;
+String? companyName;
+String? createdBy;
+String? email;
+String? unitName;
+String? idcardurl;

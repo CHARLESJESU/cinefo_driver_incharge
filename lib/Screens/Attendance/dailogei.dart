@@ -357,6 +357,24 @@ class IntimeSyncService {
       }
       final dbPath = await getDatabasesPath();
       db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS intime (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        designation TEXT,
+        code TEXT,
+        unionName TEXT,
+        vcid TEXT,
+        marked_at TEXT,
+        latitude TEXT,
+        longitude TEXT,
+        location TEXT,
+        attendance_status TEXT,
+        callsheetid INTEGER,
+        mode TEXT
+      )
+    ''');
+
       final List<Map<String, dynamic>> rows = await db.query(
         'intime',
         where: 'mode = ?',
@@ -366,18 +384,28 @@ class IntimeSyncService {
       print('IntimeSyncService: Found \\${rows.length} online rows to sync.');
       for (final row in rows) {
         print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
+        // final requestBody = jsonEncode({
+        //   "data": row['vcid'],
+        //   "callsheetid": productionTypeId == 3 ? 0 : row['callsheetid'],
+        //   "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
+        //   "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
+        //   "doubing": {},
+        //   "latitude": row['latitude'],
+        //   "longitude": row['longitude'],
+        //   "attendanceStatus": row['attendance_status'],
+        //   "location": row['location'],
+        // });
         final requestBody = jsonEncode({
           "data": row['vcid'],
-          "callsheetid": productionTypeId == 3 ? 0 : row['callsheetid'],
-          "projectid": productionTypeId == 3 ? selectedProjectId : projectId,
-          "productionTypeId": productionTypeId == 3 ? productionTypeId : 2,
+          "callsheetid": row['callsheetid'],
+          "projectid": projectId,
+          "productionTypeId": productionTypeId,
           "doubing": {},
           "latitude": row['latitude'],
           "longitude": row['longitude'],
           "attendanceStatus": row['attendance_status'],
           "location": row['location'],
         });
-
         // Get VSID from loginresponsebody or fallback to SQLite
         String? vsid = loginresponsebody?['vsid']?.toString();
         if (vsid == null || vsid.isEmpty) {

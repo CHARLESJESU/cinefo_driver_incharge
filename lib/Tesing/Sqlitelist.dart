@@ -653,31 +653,72 @@ class _SqlitelistState extends State<Sqlitelist> {
                                           ]
                                         : _viewMode == 1
                                             ? [
+                                                _buildDetailRow('Manager Name',
+                                                    item['manager_name']),
+                                                _buildDetailRow('Profile Image',
+                                                    item['profile_image']),
+                                                _buildDetailRow(
+                                                    'Registered Movie',
+                                                    item['registered_movie']),
                                                 _buildDetailRow('Mobile Number',
                                                     item['mobile_number']),
+                                                _buildDetailRow('Password',
+                                                    item['password']),
                                                 _buildDetailRow('Project ID',
                                                     item['project_id']),
                                                 _buildDetailRow(
                                                     'Production Type ID',
                                                     item['production_type_id']
                                                         ?.toString()),
-                                                _buildDetailRow('VSID',
-                                                    item['vsid']?.toString()),
                                                 _buildDetailRow(
                                                     'Production House',
                                                     item['production_house']),
-                                                _buildDetailRow('VM ID',
+                                                _buildDetailRow('VMID',
                                                     item['vmid']?.toString()),
-                                                _buildDetailRow(
-                                                    'Profile Image',
-                                                    item['profile_image']
-                                                        ?.toString()),
                                                 _buildDetailRow(
                                                     'Login Date',
                                                     _formatDate(
                                                         item['login_date'])),
                                                 _buildDetailRow('Device ID',
                                                     item['device_id']),
+                                                _buildDetailRow(
+                                                    'VSID', item['vsid']),
+                                                _buildDetailRow(
+                                                    'VPID', item['vpid']),
+                                                _buildDetailRow('VUID',
+                                                    item['vuid']?.toString()),
+                                                _buildDetailRow('Company Name',
+                                                    item['companyName']),
+                                                _buildDetailRow(
+                                                    'Email', item['email']),
+                                                _buildDetailRow('VBPID',
+                                                    item['vbpid']?.toString()),
+                                                _buildDetailRow('VCID',
+                                                    item['vcid']?.toString()),
+                                                _buildDetailRow('VSUBID',
+                                                    item['vsubid']?.toString()),
+                                                _buildDetailRow('VPOID',
+                                                    item['vpoid']?.toString()),
+                                                _buildDetailRow(
+                                                    'MTypeId',
+                                                    item['mtypeId']
+                                                        ?.toString()),
+                                                _buildDetailRow('Unit Name',
+                                                    item['unitName']),
+                                                _buildDetailRow(
+                                                    'VMTypeId',
+                                                    item['vmTypeId']
+                                                        ?.toString()),
+                                                _buildDetailRow('ID Card URL',
+                                                    item['idcardurl']),
+                                                _buildDetailRow('VPIDPO',
+                                                    item['vpidpo']?.toString()),
+                                                _buildDetailRow('VPIDBP',
+                                                    item['vpidbp']?.toString()),
+                                                _buildDetailRow('Unit ID',
+                                                    item['unitid']?.toString()),
+                                                _buildDetailRow('Platform Logo',
+                                                    item['platformlogo']),
                                               ]
                                             : _viewMode == 2
                                                 ? [

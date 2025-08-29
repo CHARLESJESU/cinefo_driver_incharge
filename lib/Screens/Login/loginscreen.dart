@@ -41,26 +41,60 @@ class _LoginscreenState extends State<Loginscreen> {
         dbPath,
         version: 4, // Increment version to force recreation
         onCreate: (Database db, int version) async {
-          // await db.execute('DROP TABLE IF EXISTS login_data');
+          await db.execute('DROP TABLE IF EXISTS login_data');
           print('📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊hvjhjvkjhgvhjgjmnvbkjgjbvn📊');
           print('🔨 Creating login_data table...');
+          // await db.execute('''
+          //   CREATE TABLE login_data (
+          //     id INTEGER PRIMARY KEY AUTOINCREMENT,
+          //     manager_name TEXT,
+          //     profile_image TEXT,
+          //     registered_movie TEXT,
+          //     mobile_number TEXT,
+          //     password TEXT,
+          //     project_id TEXT,
+          //     production_type_id INTEGER,
+          //     production_house TEXT,
+          //     vmid INTEGER,
+          //     login_date TEXT,
+          //     device_id TEXT,
+          //     vsid TEXT
+          //   )
+          // ''');
+
           await db.execute('''
-            CREATE TABLE login_data (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              manager_name TEXT,
-              profile_image TEXT,
-              registered_movie TEXT,
-              mobile_number TEXT,
-              password TEXT,
-              project_id TEXT,
-              production_type_id INTEGER,
-              production_house TEXT,
-              vmid INTEGER,
-              login_date TEXT,
-              device_id TEXT,
-              vsid TEXT
-            )
-          ''');
+  CREATE TABLE login_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    manager_name TEXT,
+    profile_image TEXT,
+    registered_movie TEXT,
+    mobile_number TEXT,
+    password TEXT,
+    project_id TEXT,
+    production_type_id INTEGER,
+    production_house TEXT,
+    vmid INTEGER,
+    login_date TEXT,
+    device_id TEXT,
+    vsid TEXT,
+    vpid TEXT,
+    vuid INTEGER,
+    companyName TEXT,
+    email TEXT,
+    vbpid INTEGER,
+    vcid INTEGER,
+    vsubid INTEGER,
+    vpoid INTEGER,
+    mtypeId INTEGER,
+    unitName TEXT,
+    vmTypeId INTEGER,
+    idcardurl TEXT,
+    vpidpo INTEGER,
+    vpidbp INTEGER,
+    unitid INTEGER,
+    platformlogo TEXT
+  )
+''');
           print('✅ SQLite login_data table created successfully');
         },
         // onUpgrade is not needed unless you want to handle migrations
@@ -124,6 +158,22 @@ class _LoginscreenState extends State<Loginscreen> {
           'login_date': DateTime.now().toIso8601String(),
           'device_id': _deviceId,
           'vsid': loginresponsebody?['vsid']?.toString() ?? '',
+          'vpid': loginresponsebody?['vpid']?.toString() ?? '',
+          'vuid': loginresponsebody?['vuid'] ?? 0,
+          'companyName': loginresponsebody?['companyName']?.toString() ?? '',
+          'email': loginresponsebody?['email']?.toString() ?? '',
+          'vbpid': loginresponsebody?['vbpid'] ?? 0,
+          'vcid': loginresponsebody?['vcid'] ?? 0,
+          'vsubid': loginresponsebody?['vsubid'] ?? 0,
+          'vpoid': loginresponsebody?['vpoid'] ?? 0,
+          'mtypeId': loginresponsebody?['mtypeId'] ?? 0,
+          'unitName': loginresponsebody?['unitName']?.toString() ?? '',
+          'vmTypeId': loginresponsebody?['vmTypeId'] ?? 0,
+          'idcardurl': loginresponsebody?['idcardurl']?.toString() ?? '',
+          'vpidpo': loginresponsebody?['vpidpo'] ?? 0,
+          'vpidbp': loginresponsebody?['vpidbp'] ?? 0,
+          'unitid': loginresponsebody?['unitid'] ?? 0,
+          'platformlogo': loginresponsebody?['platformlogo']?.toString() ?? '',
         };
 
         print(
@@ -410,6 +460,7 @@ class _LoginscreenState extends State<Loginscreen> {
       final response = await http.post(
         processRequest,
         headers: <String, String>{
+          'DEVICETYPE': '2',
           'Content-Type': 'application/json; charset=UTF-8',
           'VPID': baseurlresult?['vpid']?.toString() ?? '',
           "BASEURL": "producermember.cinefo.club",

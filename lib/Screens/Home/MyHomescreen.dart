@@ -352,13 +352,14 @@ class _MyHomescreenState extends State<MyHomescreen> {
                 icon: Icon(Icons.add),
                 color: Colors.white,
                 iconSize: 24,
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => OfflineCreateCallSheet(),
                     ),
                   );
+                  _fetchLoginAndCallsheetData(); // Refresh after returning
                 },
               ),
               IconButton(
@@ -619,16 +620,19 @@ class _MyHomescreenState extends State<MyHomescreen> {
   Widget _buildListItem(String code, String timing, String date, String status,
       {Map<String, dynamic>? callsheetData}) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (callsheetData != null) {
           if (status == 'open') {
-            Navigator.push(
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     OfflineCallsheetDetailScreen(callsheet: callsheetData),
               ),
             );
+            if (result == true) {
+              _fetchLoginAndCallsheetData();
+            }
           }
         }
       },

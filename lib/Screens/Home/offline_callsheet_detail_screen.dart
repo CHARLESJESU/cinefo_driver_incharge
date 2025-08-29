@@ -44,7 +44,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
       await db.close();
       if (result > 0) {
         print('✅ Callsheet status set to closed: $callSheetNo');
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       } else {
         print('⚠️ No callsheet found with ID: $callSheetNo');
       }
@@ -80,36 +80,35 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
     final String? Moviename = callsheet['MovieName']?.toString();
     final String? time = callsheet['shift']?.toString();
 
-    // Get current date for comparison
+    // Robust date comparison for button enable/disable
     final DateTime now = DateTime.now();
-    final String currentDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-    // Parse the createdAtRaw date for logic
     DateTime? callsheetDate;
+    bool isToday = false;
+    bool isPastDate = false;
+    bool dateParseError = false;
     try {
       callsheetDate = DateTime.parse(createdAtRaw);
     } catch (e) {
       print('Error parsing date: $e');
+      dateParseError = true;
     }
-
-    // Determine button states based on date comparison
-    bool isToday = createdAtRaw == currentDate;
-    bool isPastDate = false;
-
     if (callsheetDate != null) {
       final DateTime callsheetDay =
           DateTime(callsheetDate.year, callsheetDate.month, callsheetDate.day);
       final DateTime today = DateTime(now.year, now.month, now.day);
-
+      isToday = callsheetDay == today;
       isPastDate = callsheetDay.isBefore(today);
+      print('Callsheet date: '
+          '${callsheetDay.toIso8601String()} | Today: ${today.toIso8601String()} | isToday: $isToday | isPastDate: $isPastDate');
+    } else {
+      print(
+          'Callsheet date missing or invalid, enabling attendance buttons by default.');
     }
-
     // Button enable/disable logic
     bool enableAttendanceButtons =
-        isToday; // In-time, Out-time, Config only enabled for today
+        isToday || dateParseError || callsheetDate == null;
     bool enableCloseButton =
-        isToday || isPastDate; // Close button enabled for today and past dates
+        isToday || isPastDate || dateParseError || callsheetDate == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -331,11 +330,12 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                           GestureDetector(
                             onTap: enableAttendanceButtons
                                 ? () {
-                                    if (productionTypeId == 3 ||
-                                        (productionTypeId == 2 &&
-                                            passProjectidresponse?[
-                                                    'errordescription'] !=
-                                                "No Record found")) {
+                                    print('In-time tapped. productionTypeId: '
+                                        '[33m$productionTypeId[0m, passProjectidresponse: '
+                                        '\u001b[33m${passProjectidresponse?['errordescription']}\u001b[0m');
+                                    if (productionTypeId == 3) {
+                                      print(
+                                          'Proceeding: productionTypeId == 3');
                                       isoffline = true;
                                       Navigator.push(
                                           context,
@@ -346,6 +346,22 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                                           NFCNotifier(),
                                                       child:
                                                           const IntimeScreen())));
+                                    } else if (productionTypeId == 2) {
+                                      print(
+                                          'Proceeding: productionTypeId == 2 (no passProjectidresponse check)');
+                                      isoffline = true;
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ChangeNotifierProvider(
+                                                      create: (_) =>
+                                                          NFCNotifier(),
+                                                      child:
+                                                          const IntimeScreen())));
+                                    } else {
+                                      print(
+                                          'In-time tap blocked by condition.');
                                     }
                                   }
                                 : null, // Disable tap when not enabled
@@ -361,11 +377,12 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                           GestureDetector(
                             onTap: enableAttendanceButtons
                                 ? () {
-                                    if (productionTypeId == 3 ||
-                                        (productionTypeId == 2 &&
-                                            passProjectidresponse?[
-                                                    'errordescription'] !=
-                                                "No Record found")) {
+                                    print('Out-time tapped. productionTypeId: '
+                                        '[33m$productionTypeId[0m, passProjectidresponse: '
+                                        '\u001b[33m${passProjectidresponse?['errordescription']}\u001b[0m');
+                                    if (productionTypeId == 3) {
+                                      print(
+                                          'Proceeding: productionTypeId == 3');
                                       Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -374,7 +391,22 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                                       create: (_) =>
                                                           NFCNotifier(),
                                                       child:
-                                                          const IntimeScreen())));
+                                                          const Outtimecharles())));
+                                    } else if (productionTypeId == 2) {
+                                      print(
+                                          'Proceeding: productionTypeId == 2 (no passProjectidresponse check)');
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ChangeNotifierProvider(
+                                                      create: (_) =>
+                                                          NFCNotifier(),
+                                                      child:
+                                                          const Outtimecharles())));
+                                    } else {
+                                      print(
+                                          'Out-time tap blocked by condition.');
                                     }
                                   }
                                 : null, // Disable tap when not enabled
