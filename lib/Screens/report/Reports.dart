@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
 import 'package:production/Screens/report/Reportdetails.dart';
 import 'package:production/sessionexpired.dart';
@@ -23,7 +25,28 @@ class _ReportsState extends State<Reports> {
   @override
   void initState() {
     super.initState();
-    callsheet(); // Fetch API data on screen load
+    fetchVSIDFromLoginData()
+        .then((_) => callsheet()); // Fetch API data on screen load
+  }
+
+  Future<void> fetchVSIDFromLoginData() async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase('${dbPath}/production_login.db');
+      final List<Map<String, dynamic>> loginRows =
+          await db.query('login_data', orderBy: 'id ASC', limit: 1);
+      if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
+        setState(() {
+          vsid = loginRows.first['vsid'].toString();
+          vmid = loginRows.first['vmid'];
+          projectId = loginRows.first['project_id'];
+          // Do NOT overwrite projectId here, use widget.projectId for navigation and API
+        });
+      }
+      await db.close();
+    } catch (e) {
+      print('Error fetching VSID from login_data: $e');
+    }
   }
 
   Future<void> callsheet() async {
@@ -34,20 +57,18 @@ class _ReportsState extends State<Reports> {
           'Content-Type': 'application/json; charset=UTF-8',
           'VMETID':
               'CpgDDfl7OjvtUfpQTq2Ay6pOFg0PjAExT+oKNsVaRW6PmfKxZqN0t1/tLoQjXSTMPIhb1P7rk0FStcwChgtzyZ9eB2gYIew67wiUjlmQquYyrB/isPKkyl8JtOi93+DhAd5xnejC8R45wEhEEt7kCpEIFSqdfg0TqXbProryg+wohtZFfMscEDmgdR6WwcdfyQzpR82+0QK1oPm/CxeYWUATCA1FKW4sqYCtiXANLlIaxAEcjB8SxKoxrixmGqO32n9eTvFHGm80EkZ1x+0o9lL5FeLGiqqdRYD34jEP/NsKAKbU6Q6UfE4VZuxoomWDMLL5Cp2QKj5YuWoY1NVdSg==',
-          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+          'VSID': vsid ?? "",
         },
-        body: jsonEncode({
-          "projectid": projectId.toString(),
-          "callsheetid": "0",
-          "vmid": vmid.toString()
-        }),
+        body: jsonEncode(
+            {"projectid": projectId, "callsheetid": 0, "vmid": vmid}),
       );
-
+      print(vmid);
+      print(projectId);
       // Check if widget is still mounted before processing response
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        print(response.body);
+        print("✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅${response.body} ");
         final Map<String, dynamic> data = jsonDecode(response.body);
 
         if (data['status'] == "200" && data['responseData'] != null) {
@@ -199,6 +220,7 @@ class _ReportsState extends State<Reports> {
                               callsheet['callsheetStatus'] ?? "N/A",
                               callsheet['location'] ?? "N/A",
                               callsheet['date'],
+                              callsheet['callSheetId']?.toString() ?? "N/A",
                             )),
                       ],
                     ),
@@ -217,6 +239,7 @@ class _ReportsState extends State<Reports> {
     String callsheetStatus,
     String location,
     dynamic dateValue,
+    dynamic callsheetid,
   ) {
     String formattedDate = "Invalid Date";
     if (dateValue != null && dateValue.toString().trim().isNotEmpty) {
@@ -230,11 +253,15 @@ class _ReportsState extends State<Reports> {
 
     return GestureDetector(
       onTap: () {
+        // Print for debug
+        print(
+            'Navigating to Reportdetails with callsheetid: $callsheetid, projectId: ${projectId.toString()}');
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) =>
-                    Reportdetails(projectId: projectId.toString())));
+                builder: (context) => Reportdetails(
+                    projectId: projectId.toString(),
+                    maincallsheetid: callsheetid.toString())));
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 12),
@@ -313,7 +340,7 @@ class _ReportsState extends State<Reports> {
                 SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    location,
+                    callsheetid.toString(),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],

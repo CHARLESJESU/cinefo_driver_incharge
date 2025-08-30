@@ -6,8 +6,10 @@ import 'package:production/variables.dart';
 
 class Reportdetails extends StatefulWidget {
   final String projectId;
+  final String maincallsheetid;
 
-  const Reportdetails({super.key, required this.projectId});
+  const Reportdetails(
+      {super.key, required this.projectId, required this.maincallsheetid});
 
   @override
   State<Reportdetails> createState() => _ReportdetailsState();
@@ -18,6 +20,8 @@ class _ReportdetailsState extends State<Reportdetails> {
   bool isLoading = true;
 
   Future<void> reportsscreen() async {
+    print(widget.maincallsheetid);
+    print(widget.projectId);
     try {
       final response = await http.post(
         processSessionRequest,
@@ -25,15 +29,17 @@ class _ReportdetailsState extends State<Reportdetails> {
           'Content-Type': 'application/json; charset=UTF-8',
           'VMETID':
               "M1eZ6wLvBLCuSi4sdl6UoLJWnxZP5rJeLboXP93ukEsq/wVU4oxKSDUuD0ztNzeehHyKegLPgfFNJhMOm+sVeofs6HNJwTmSvrVpE2uIedFafjzruD4npza1tgz9gi0VYTaAU4gnqdtXEC4BCBjz6dGXV0BBdDWKpag1fZnOdB4+h2P9bv946GvG53+PsxFC30VEt5utBorby+AeL3xW6HjsK72KpZkE/YROUmdqwyjGapxu0NmAij2+zB9yYYvINMJa68aeBSEiaqWWKdJyqSL1nE3HhwmWJX/XCp+dNBRjtwgK5JZMIcsOl+ZX298fE0bghyXkq0lw69Kjmw2lmw==",
-          'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+          'VSID': vsid ?? "",
         },
         body: jsonEncode({
-          "callsheetid": callsheetid.toString(),
+          "callsheetid": widget.maincallsheetid,
           "projectId": widget.projectId,
         }),
       );
+      print("${widget.maincallsheetid}✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ");
+      print("${widget.projectId}✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ");
       if (response.statusCode == 200) {
-        print(response.body);
+        print("${response.body}✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ");
         final decoded = jsonDecode(response.body);
         if (decoded['responseData'] != null) {
           List<AttendanceEntry> entries = (decoded['responseData'] as List)
@@ -45,15 +51,15 @@ class _ReportdetailsState extends State<Reportdetails> {
           });
         }
       } else {
-      Map error = jsonDecode(response.body);
-      print(error);
-      if (error['errordescription'] == "Session Expired") {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const Sessionexpired()));
-      }
-      setState(() {
-        isLoading = false;
-      });
+        Map error = jsonDecode(response.body);
+        print(error);
+        if (error['errordescription'] == "Session Expired") {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const Sessionexpired()));
+        }
+        setState(() {
+          isLoading = false;
+        });
       }
     } catch (e) {
       print("Exception: $e");

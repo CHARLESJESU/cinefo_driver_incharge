@@ -458,6 +458,7 @@ class IntimeSyncService {
               "IntimeSyncService: Deleting row id=${row['id']} after successful POST.");
           try {
             await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+            print('✅ Successfully deleted row id=${row['id']}');
           } catch (e) {
             print('❌ Error deleting record: $e');
           }

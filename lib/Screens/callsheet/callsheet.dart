@@ -451,7 +451,7 @@ class _CallSheetState extends State<CallSheet> {
                                               ),
                                             ),
                                             Text(
-                                              location ?? "Chennai",
+                                              locationofcharles ?? "Chennai",
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
