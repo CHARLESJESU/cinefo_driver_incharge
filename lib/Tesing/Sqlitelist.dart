@@ -349,6 +349,12 @@ class _SqlitelistState extends State<Sqlitelist> {
     return Scaffold(
       backgroundColor: Color(0xFF355E8C),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context, true),
+          tooltip: 'Back',
+        ),
         title: Text(
           _viewMode == 0
               ? 'SQLite Call Sheet Data'

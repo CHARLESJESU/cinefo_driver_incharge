@@ -382,234 +382,240 @@ class _MyHomescreenState extends State<MyHomescreen> {
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.only(
-                  bottom: 100), // Add bottom padding to avoid navigation bar
-              child: Column(
-                children: [
-                  SizedBox(height: 20), // Space from AppBar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Container(
-                      height: 130,
-                      decoration: BoxDecoration(
-                        color: Color(0xFF355E8C),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 7),
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Colors.grey[300],
-                            child: (_profileImage != null &&
-                                    _profileImage!.isNotEmpty &&
-                                    _profileImage!.toLowerCase() != 'unknown')
-                                ? ClipOval(
-                                    child: Image.network(
-                                      _profileImage!,
-                                      width: 96,
-                                      height: 96,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null)
-                                          return child;
-                                        return Icon(Icons.person,
-                                            size: 48, color: Colors.grey[600]);
-                                      },
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Icon(Icons.person,
-                                            size: 48, color: Colors.grey[600]);
-                                      },
-                                    ),
-                                  )
-                                : Icon(Icons.person,
-                                    size: 48, color: Colors.grey[600]),
-                          ),
-                          const SizedBox(width: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_managerName ?? '',
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white)),
-                                Text("PRODUCTION MANAGER",
-                                    style: TextStyle(
-                                        fontSize: 12, color: Colors.white70)),
-                                Text(_mobileNumber ?? '',
-                                    style: TextStyle(
-                                        fontSize: 12, color: Colors.white70)),
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20), // Space between containers
-                  // Avengers: Endgame container (different design)
-                  //container 2
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Container(
-                      height: 120,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF4A6FA5),
-                            Color(0xFF2E4B73),
-                          ],
+          body: RefreshIndicator(
+            onRefresh: _fetchLoginAndCallsheetData,
+            child: SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.only(
+                    bottom: 100), // Add bottom padding to avoid navigation bar
+                child: Column(
+                  children: [
+                    SizedBox(height: 20), // Space from AppBar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Container(
+                        height: 130,
+                        decoration: BoxDecoration(
+                          color: Color(0xFF355E8C),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
+                            const SizedBox(width: 7),
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.grey[300],
+                              child: (_profileImage != null &&
+                                      _profileImage!.isNotEmpty &&
+                                      _profileImage!.toLowerCase() != 'unknown')
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        _profileImage!,
+                                        width: 96,
+                                        height: 96,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Icon(Icons.person,
+                                              size: 48,
+                                              color: Colors.grey[600]);
+                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Icon(Icons.person,
+                                              size: 48,
+                                              color: Colors.grey[600]);
+                                        },
+                                      ),
+                                    )
+                                  : Icon(Icons.person,
+                                      size: 48, color: Colors.grey[600]),
+                            ),
+                            const SizedBox(width: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    _registeredMovie ?? '',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    _productionHouse ?? '',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white.withOpacity(0.8),
-                                    ),
-                                  ),
+                                  Text(_managerName ?? '',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white)),
+                                  Text("PRODUCTION MANAGER",
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.white70)),
+                                  Text(_mobileNumber ?? '',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.white70)),
                                 ],
                               ),
-                            ),
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.play_arrow,
-                                color: Colors.white,
-                                size: 35,
-                              ),
-                            ),
+                            )
                           ],
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 20), // Space after container 2
-                  // Offline call sheet section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Container(
-                      margin: EdgeInsets.only(top: 10),
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
+                    SizedBox(height: 20), // Space between containers
+                    // Avengers: Endgame container (different design)
+                    //container 2
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF4A6FA5),
+                              Color(0xFF2E4B73),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Offline call sheet',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2B5682),
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
                             ),
-                          ),
-                          SizedBox(height: 15),
-                          if (_callsheetList.isNotEmpty)
-                            ..._callsheetList.map((item) => _buildListItem(
-                                  item['callSheetNo']?.toString() ?? '',
-                                  item['locationType']?.toString() ?? '',
-                                  (item['created_at']?.toString() ?? '')
-                                      .split('T')
-                                      .first,
-                                  item['status']?.toString() ?? '',
-                                  callsheetData: item,
-                                ))
-                          else
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.description_outlined,
-                                    size: 48,
-                                    color: Colors.grey[400],
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'No offline call sheet available',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _registeredMovie ?? '',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Create a call sheet to see it here',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
+                                    SizedBox(height: 8),
+                                    Text(
+                                      _productionHouse ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                        ],
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 20), // Space after container 2
+                    // Offline call sheet section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Container(
+                        margin: EdgeInsets.only(top: 10),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Offline call sheet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2B5682),
+                              ),
+                            ),
+                            SizedBox(height: 15),
+                            if (_callsheetList.isNotEmpty)
+                              ..._callsheetList.map((item) => _buildListItem(
+                                    item['callSheetNo']?.toString() ?? '',
+                                    item['locationType']?.toString() ?? '',
+                                    (item['created_at']?.toString() ?? '')
+                                        .split('T')
+                                        .first,
+                                    item['status']?.toString() ?? '',
+                                    callsheetData: item,
+                                  ))
+                            else
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.description_outlined,
+                                      size: 48,
+                                      color: Colors.grey[400],
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'No offline call sheet available',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Create a call sheet to see it here',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        )
+        ),
       ],
     );
   }

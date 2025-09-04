@@ -1006,7 +1006,7 @@ class _LoginscreenState extends State<Loginscreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0, top: 8.0),
                   child: Text(
-                    'v.2.0.0',
+                    'V.3.0.0',
                     style: TextStyle(
                       fontSize: screenWidth * 0.035,
                       color: Colors.grey,

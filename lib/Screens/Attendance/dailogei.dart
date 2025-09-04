@@ -176,6 +176,25 @@ class _CountdownDialogState extends State<_CountdownDialog> {
 
 // --- Background FIFO sync service ---
 
+  Future<bool> checkIfAttendanceAlreadyMarked(String vcid) async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+
+      final List<Map<String, dynamic>> existingRecords = await db.query(
+        'intime',
+        where: 'vcid = ? AND callsheetid = ? AND attendance_status = ?',
+        whereArgs: [vcid, callsheetid, widget.attendanceStatus],
+      );
+
+      await db.close();
+      return existingRecords.isNotEmpty;
+    } catch (e) {
+      print('ERROR checking existing attendance: $e');
+      return false;
+    }
+  }
+
   Future<void> markattendance(String vcid) async {
     print('DEBUG: markattendance started with vcid: $vcid');
     setState(() {
@@ -185,6 +204,26 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       print('DEBUG: Attendance already marked, returning');
       return;
     }
+
+    // Check if attendance is already marked for this vcid and callsheet
+    bool alreadyMarked = await checkIfAttendanceAlreadyMarked(vcid);
+    if (alreadyMarked) {
+      print('DEBUG: Attendance already exists for vcid: $vcid');
+      setState(() {
+        first = false;
+        responseMessage = "Attendance already marked";
+      });
+
+      // Show dialog and close after delay
+      Future.delayed(Duration(milliseconds: 1500), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onDismissed();
+        }
+      });
+      return;
+    }
+
     setState(() => _isloading = true);
     _attendanceMarked = true;
 
@@ -289,6 +328,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
   Widget build(BuildContext context) {
     final imageUrl = transformVcidToImageUrl(widget.vcid);
     final isNfcDisabled = widget.message == "Please Enable NFC From Settings";
+    final isAlreadyMarked = responseMessage == "Attendance already marked";
 
     return AlertDialog(
       contentPadding: const EdgeInsets.all(16.0),
@@ -311,9 +351,28 @@ class _CountdownDialogState extends State<_CountdownDialog> {
                   : const Icon(Icons.person, size: 60, color: Colors.grey),
             ),
           const SizedBox(height: 10),
-          Text(
-            responseMessage.isNotEmpty ? responseMessage : widget.message,
-            textAlign: TextAlign.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isAlreadyMarked)
+                Icon(
+                  Icons.warning,
+                  color: Colors.orange,
+                  size: 20,
+                ),
+              if (isAlreadyMarked) const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  responseMessage.isNotEmpty ? responseMessage : widget.message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isAlreadyMarked ? Colors.orange : Colors.black,
+                    fontWeight:
+                        isAlreadyMarked ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           if (_isloading)

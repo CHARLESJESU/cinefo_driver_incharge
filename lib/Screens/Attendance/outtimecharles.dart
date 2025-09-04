@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Attendance/dailogei.dart';
 import 'package:production/Screens/Attendance/nfcnotifier.dart';
-
 import 'package:provider/provider.dart';
 
 class Outtimecharles extends StatelessWidget {
@@ -9,6 +8,7 @@ class Outtimecharles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Set attendance status for Out Time
     return ChangeNotifierProvider<NFCNotifier>(
       create: (_) => NFCNotifier(),
       builder: (context, child) => _OuttimecharlesBody(),
