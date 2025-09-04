@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
 import 'package:production/Screens/report/Reportdetails.dart';
 import 'package:production/sessionexpired.dart';
@@ -20,13 +19,16 @@ class Reports extends StatefulWidget {
 
 class _ReportsState extends State<Reports> {
   List<Map<String, dynamic>> callSheets = [];
+  List<Map<String, dynamic>> offlineCallSheets = [];
   bool isLoading = true; // State for loading indicator
 
   @override
   void initState() {
     super.initState();
-    fetchVSIDFromLoginData()
-        .then((_) => callsheet()); // Fetch API data on screen load
+    fetchVSIDFromLoginData().then((_) => Future.wait([
+          callsheet(), // Fetch API data
+          fetchOfflineCallSheets(), // Fetch SQLite data
+        ]));
   }
 
   Future<void> fetchVSIDFromLoginData() async {
@@ -46,6 +48,32 @@ class _ReportsState extends State<Reports> {
       await db.close();
     } catch (e) {
       print('Error fetching VSID from login_data: $e');
+    }
+  }
+
+  Future<void> fetchOfflineCallSheets() async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase('${dbPath}/production_login.db');
+
+      // Check if callsheetoffline table exists
+      final tableExists = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='callsheetoffline'");
+
+      if (tableExists.isNotEmpty) {
+        final List<Map<String, dynamic>> offlineData = await db.query(
+          'callsheetoffline',
+          orderBy: 'created_at DESC',
+        );
+
+        setState(() {
+          offlineCallSheets = offlineData;
+        });
+      }
+
+      await db.close();
+    } catch (e) {
+      print('Error fetching offline call sheets: $e');
     }
   }
 
@@ -175,7 +203,7 @@ class _ReportsState extends State<Reports> {
                         ),
                       ),
                     )
-                  else if (callSheets.isEmpty)
+                  else if (callSheets.isEmpty && offlineCallSheets.isEmpty)
                     Center(
                       child: Container(
                         padding: EdgeInsets.all(40),
@@ -214,14 +242,53 @@ class _ReportsState extends State<Reports> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...callSheets.map((callsheet) => containerBox(
-                              context,
-                              callsheet['callSheetNo'] ?? "N/A",
-                              callsheet['callsheetStatus'] ?? "N/A",
-                              callsheet['location'] ?? "N/A",
-                              callsheet['date'],
-                              callsheet['callSheetId']?.toString() ?? "N/A",
-                            )),
+                        // Online Call Sheets Section
+                        if (callSheets.isNotEmpty) ...[
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              "Online CallSheets",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          ...callSheets.map((callsheet) => containerBox(
+                                context,
+                                callsheet['callSheetNo'] ?? "N/A",
+                                callsheet['callsheetStatus'] ?? "N/A",
+                                callsheet['location'] ?? "N/A",
+                                callsheet['date'],
+                                callsheet['callSheetId']?.toString() ?? "N/A",
+                                isOffline: false,
+                              )),
+                          SizedBox(height: 20),
+                        ],
+                        // Offline Call Sheets Section
+                        if (offlineCallSheets.isNotEmpty) ...[
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              "Offline CallSheets",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          ...offlineCallSheets.map((callsheet) => containerBox(
+                                context,
+                                callsheet['callSheetNo'] ?? "N/A",
+                                callsheet['status'] ?? "N/A",
+                                callsheet['locationType'] ?? "N/A",
+                                callsheet['created_at'],
+                                callsheet['callSheetId']?.toString() ?? "N/A",
+                                isOffline: true,
+                              )),
+                        ],
                       ],
                     ),
                 ],
@@ -234,13 +301,13 @@ class _ReportsState extends State<Reports> {
   }
 
   Widget containerBox(
-    BuildContext context,
-    String title,
-    String callsheetStatus,
-    String location,
-    dynamic dateValue,
-    dynamic callsheetid,
-  ) {
+      BuildContext context,
+      String title,
+      String callsheetStatus,
+      String location,
+      dynamic dateValue,
+      dynamic callsheetid,
+      {bool isOffline = false}) {
     String formattedDate = "Invalid Date";
     if (dateValue != null && dateValue.toString().trim().isNotEmpty) {
       try {
@@ -255,13 +322,14 @@ class _ReportsState extends State<Reports> {
       onTap: () {
         // Print for debug
         print(
-            'Navigating to Reportdetails with callsheetid: $callsheetid, projectId: ${projectId.toString()}');
+            'Navigating to Reportdetails with callsheetid: $callsheetid, projectId: ${projectId.toString()}, isOffline: $isOffline');
         Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (context) => Reportdetails(
                     projectId: projectId.toString(),
-                    maincallsheetid: callsheetid.toString())));
+                    maincallsheetid: callsheetid.toString(),
+                    isOffline: isOffline)));
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 12),
@@ -310,6 +378,23 @@ class _ReportsState extends State<Reports> {
                       ),
                     ),
                   ),
+                  if (isOffline)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      margin: EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'OFFLINE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[800],
+                        ),
+                      ),
+                    ),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(

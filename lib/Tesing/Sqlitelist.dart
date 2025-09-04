@@ -649,6 +649,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                             _buildDetailRow('Location Type',
                                                 item['locationType']),
                                             _buildDetailRow(
+                                                'Status', item['status']),
+                                            _buildDetailRow(
                                                 'Location Type ID',
                                                 item['locationTypeId']
                                                     ?.toString()),
@@ -801,6 +803,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     _buildDetailRow(
                                                         'Location Type',
                                                         item['locationType']),
+                                                    _buildDetailRow('Status',
+                                                        item['status']),
                                                     _buildDetailRow(
                                                         'Location Type ID',
                                                         item['locationTypeId']

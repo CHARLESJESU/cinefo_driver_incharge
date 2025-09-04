@@ -1,15 +1,21 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path;
 import 'package:production/sessionexpired.dart';
 import 'package:production/variables.dart';
 
 class Reportdetails extends StatefulWidget {
   final String projectId;
   final String maincallsheetid;
+  final bool isOffline;
 
   const Reportdetails(
-      {super.key, required this.projectId, required this.maincallsheetid});
+      {super.key,
+      required this.projectId,
+      required this.maincallsheetid,
+      this.isOffline = false});
 
   @override
   State<Reportdetails> createState() => _ReportdetailsState();
@@ -18,6 +24,67 @@ class Reportdetails extends StatefulWidget {
 class _ReportdetailsState extends State<Reportdetails> {
   List<AttendanceEntry> reportData = [];
   bool isLoading = true;
+
+  Future<void> fetchOfflineAttendanceData() async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final db = await openDatabase(path.join(dbPath, 'production_login.db'));
+
+      // Query intime table for attendance data matching the callsheet ID
+      final List<Map<String, dynamic>> intimeData = await db.query(
+        'intime',
+        where: 'callsheetid = ?',
+        whereArgs: [int.parse(widget.maincallsheetid)],
+      );
+
+      // Group data by person (name or vcid) and combine in/out times
+      Map<String, AttendanceEntry> attendanceMap = {};
+
+      for (var record in intimeData) {
+        String personKey = record['name'] ?? record['vcid'] ?? 'Unknown';
+        String attendanceStatus = record['attendance_status']?.toString() ?? '';
+        String markedTime = record['marked_at'] ?? '';
+
+        if (attendanceMap.containsKey(personKey)) {
+          // Update existing entry
+          if (attendanceStatus == '1') {
+            attendanceMap[personKey] = attendanceMap[personKey]!
+                .copyWith(inTime: _formatTime(markedTime));
+          } else if (attendanceStatus == '2') {
+            attendanceMap[personKey] = attendanceMap[personKey]!
+                .copyWith(outTime: _formatTime(markedTime));
+          }
+        } else {
+          // Create new entry
+          attendanceMap[personKey] = AttendanceEntry(
+            memberName: record['name'] ?? 'Unknown',
+            inTime: attendanceStatus == '1' ? _formatTime(markedTime) : null,
+            outTime: attendanceStatus == '2' ? _formatTime(markedTime) : null,
+          );
+        }
+      }
+
+      setState(() {
+        reportData = attendanceMap.values.toList();
+        isLoading = false;
+      });
+
+      await db.close();
+    } catch (e) {
+      print("Error fetching offline attendance: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  String _formatTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) return '--';
+    try {
+      DateTime dateTime = DateTime.parse(isoString);
+      return "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return '--';
+    }
+  }
 
   Future<void> reportsscreen() async {
     print(widget.maincallsheetid);
@@ -70,7 +137,11 @@ class _ReportdetailsState extends State<Reportdetails> {
   @override
   void initState() {
     super.initState();
-    reportsscreen();
+    if (widget.isOffline) {
+      fetchOfflineAttendanceData();
+    } else {
+      reportsscreen();
+    }
   }
 
   @override
@@ -97,7 +168,9 @@ class _ReportdetailsState extends State<Reportdetails> {
                       ),
                       SizedBox(width: 20),
                       Text(
-                        "Report Details",
+                        widget.isOffline
+                            ? "Offline Report Details"
+                            : "Report Details",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
@@ -196,6 +269,18 @@ class AttendanceEntry {
       memberName: json['memberName'] ?? '',
       inTime: json['intime'],
       outTime: json['outTime'],
+    );
+  }
+
+  AttendanceEntry copyWith({
+    String? memberName,
+    String? inTime,
+    String? outTime,
+  }) {
+    return AttendanceEntry(
+      memberName: memberName ?? this.memberName,
+      inTime: inTime ?? this.inTime,
+      outTime: outTime ?? this.outTime,
     );
   }
 }
