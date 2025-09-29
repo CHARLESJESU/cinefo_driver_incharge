@@ -291,6 +291,8 @@ class _ReportsState extends State<Reports> {
                         ],
                       ],
                     ),
+                  // Add extra bottom padding to prevent content from being hidden by navigation
+                  SizedBox(height: 100),
                 ],
               ),
             ),

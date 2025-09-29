@@ -303,6 +303,21 @@ Future<void> createCallSheetFromOffline(
                 ),
               );
             }
+            // Delete the closed call sheet from callsheetoffline table
+            try {
+              var dbPath = await getDatabasesPath();
+              var db = await openDatabase(dbPath + '/production_login.db');
+              await db.delete(
+                'callsheetoffline',
+                where: 'callSheetId = ?',
+                whereArgs: [responseData['callSheetId']],
+              );
+              await db.close();
+              print('Deleted callsheetoffline row for callSheetId: ' +
+                  responseData['callSheetId'].toString());
+            } catch (e) {
+              print('Error deleting callsheetoffline row: ' + e.toString());
+            }
             // Close the main database connection at the very end
             await db.close();
           }

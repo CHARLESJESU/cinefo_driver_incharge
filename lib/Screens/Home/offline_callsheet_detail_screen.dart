@@ -375,6 +375,26 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                             ),
                           ),
                           GestureDetector(
+                            onTap: enableCloseButton
+                                ? () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => CloseCallSheet(),
+                                      ),
+                                    );
+                                  }
+                                : null, // Disable tap when not enabled
+                            child: _actionButton(
+                              "Close callsheet",
+                              Icons.assignment_turned_in,
+                              enableCloseButton
+                                  ? AppColors.primaryLight
+                                  : Colors.grey,
+                              enabled: enableCloseButton,
+                            ),
+                          ),
+                          GestureDetector(
                             onTap: enableAttendanceButtons
                                 ? () {
                                     print('Out-time tapped. productionTypeId: '
@@ -486,7 +506,7 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                               ),
                               SizedBox(width: 8),
                               Text(
-                                "Close Callsheet",
+                                "Pack Up",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,

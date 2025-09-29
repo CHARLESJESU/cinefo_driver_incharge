@@ -1,0 +1,355 @@
+{
+  "project_info": {
+    "project_number": "228919231041",
+    "firebase_url": "https://dinnertonight-3d9ce-default-rtdb.firebaseio.com",
+    "project_id": "dinnertonight-3d9ce",
+    "storage_bucket": "dinnertonight-3d9ce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:75b2d0a56552deb340bcc0",
+        "android_client_info": {
+          "package_name": "com.example.azuredisplay"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-1mv19sut46jqk6p60nkcpnr30393bdbk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.azuredisplay",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:a4bc1797801e3b8340bcc0",
+        "android_client_info": {
+          "package_name": "com.example.faabor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-4bdfrh5r0j8mv0mehud1uru2u2gcqudg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.faabor",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:0f0d7cae04d6dc7240bcc0",
+        "android_client_info": {
+          "package_name": "com.example.firebaseappdistribution"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-gttu9al8sijm777atqenevemlma6438a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.firebaseappdistribution",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:e22d3e229ed1016c40bcc0",
+        "android_client_info": {
+          "package_name": "com.example.firebasewithml"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-6jcep7v5qv9k9gb0q3tttv58v7ds71gk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.firebasewithml",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:b8b6f1231fa9798d40bcc0",
+        "android_client_info": {
+          "package_name": "com.example.fish_tank"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:806ab1de54b32efb40bcc0",
+        "android_client_info": {
+          "package_name": "com.example.flutterdinner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-f7525vvkjhbpmrvo2bde963kqi1efe6f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterdinner",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:2446454b88391cc640bcc0",
+        "android_client_info": {
+          "package_name": "com.example.nivetha123"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-9eicrfn63se1n6k28kcrioc4n0q8qnmg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.nivetha123",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228919231041:android:2b3cf452157c1ae640bcc0",
+        "android_client_info": {
+          "package_name": "com.vlabs.cinefo_production"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228919231041-tica093hqo22f8fle8nrvtdh4q5mtt4u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vlabs.cinefo_production",
+            "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
+          }
+        },
+        {
+          "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2NdzsbCi-XnhYHV0WAyCUkJyxmabyE7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228919231041-kluu65f8umd8pvahnkrlfjrms1hrlkdo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "228919231041-3t65qc8fqll073onulglsi3ut66inmga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishTank"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
