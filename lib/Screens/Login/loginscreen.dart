@@ -33,6 +33,49 @@ class _LoginscreenState extends State<Loginscreen> {
     return _database!;
   }
 
+  // Helper method to create login_data table
+  Future<void> _createLoginTable(Database db) async {
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS login_data (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          manager_name TEXT,
+          profile_image TEXT,
+          registered_movie TEXT,
+          mobile_number TEXT,
+          password TEXT,
+          project_id TEXT,
+          production_type_id INTEGER,
+          production_house TEXT,
+          vmid INTEGER,
+          login_date TEXT,
+          device_id TEXT,
+          vsid TEXT,
+          vpid TEXT,
+          vuid INTEGER,
+          companyName TEXT,
+          email TEXT,
+          vbpid INTEGER,
+          vcid INTEGER,
+          vsubid INTEGER,
+          vpoid INTEGER,
+          mtypeId INTEGER,
+          unitName TEXT,
+          vmTypeId INTEGER,
+          idcardurl TEXT,
+          vpidpo INTEGER,
+          vpidbp INTEGER,
+          unitid INTEGER,
+          platformlogo TEXT
+        )
+      ''');
+      print('✅ SQLite login_data table created/verified successfully');
+    } catch (e) {
+      print('❌ Error creating login_data table: $e');
+      rethrow;
+    }
+  }
+
   // Create database and login table (with profile_image field)
   Future<Database> _initDatabase() async {
     try {
@@ -44,63 +87,18 @@ class _LoginscreenState extends State<Loginscreen> {
         dbPath,
         version: 4, // Increment version to force recreation
         onCreate: (Database db, int version) async {
-          await db.execute('DROP TABLE IF EXISTS login_data');
-          print('📊📊📊📊📊📊📊📊📊📊📊📊📊📊📊hvjhjvkjhgvhjgjmnvbkjgjbvn📊');
-          print('🔨 Creating login_data table...');
-          // await db.execute('''
-          //   CREATE TABLE login_data (
-          //     id INTEGER PRIMARY KEY AUTOINCREMENT,
-          //     manager_name TEXT,
-          //     profile_image TEXT,
-          //     registered_movie TEXT,
-          //     mobile_number TEXT,
-          //     password TEXT,
-          //     project_id TEXT,
-          //     production_type_id INTEGER,
-          //     production_house TEXT,
-          //     vmid INTEGER,
-          //     login_date TEXT,
-          //     device_id TEXT,
-          //     vsid TEXT
-          //   )
-          // ''');
-
-          await db.execute('''
-  CREATE TABLE login_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    manager_name TEXT,
-    profile_image TEXT,
-    registered_movie TEXT,
-    mobile_number TEXT,
-    password TEXT,
-    project_id TEXT,
-    production_type_id INTEGER,
-    production_house TEXT,
-    vmid INTEGER,
-    login_date TEXT,
-    device_id TEXT,
-    vsid TEXT,
-    vpid TEXT,
-    vuid INTEGER,
-    companyName TEXT,
-    email TEXT,
-    vbpid INTEGER,
-    vcid INTEGER,
-    vsubid INTEGER,
-    vpoid INTEGER,
-    mtypeId INTEGER,
-    unitName TEXT,
-    vmTypeId INTEGER,
-    idcardurl TEXT,
-    vpidpo INTEGER,
-    vpidbp INTEGER,
-    unitid INTEGER,
-    platformlogo TEXT
-  )
-''');
-          print('✅ SQLite login_data table created successfully');
+          print('� onCreate: Creating login_data table...');
+          await _createLoginTable(db);
         },
-        // onUpgrade is not needed unless you want to handle migrations
+        onOpen: (Database db) async {
+          print('📂 onOpen: Ensuring login_data table exists...');
+          await _createLoginTable(db);
+        },
+        onUpgrade: (Database db, int oldVersion, int newVersion) async {
+          print('⬆️ onUpgrade: Recreating login_data table...');
+          await db.execute('DROP TABLE IF EXISTS login_data');
+          await _createLoginTable(db);
+        },
       );
 
       // Test database connectivity
@@ -231,6 +229,10 @@ class _LoginscreenState extends State<Loginscreen> {
       final db = await database;
       print('✅ Database connection obtained');
 
+      // Ensure table exists before any operations
+      await _createLoginTable(db);
+      print('✅ Login table verified/created');
+
       // Use a transaction to ensure the database stays open
       await db.transaction((txn) async {
         // For testing purposes, clear existing data first
@@ -324,6 +326,7 @@ class _LoginscreenState extends State<Loginscreen> {
   Future<Map<String, dynamic>?> getActiveLoginData() async {
     try {
       final db = await database;
+      await _createLoginTable(db); // Ensure table exists
       final List<Map<String, dynamic>> maps = await db.query(
         'login_data',
         orderBy: 'id ASC', // Get the first user (lowest ID)
@@ -344,6 +347,7 @@ class _LoginscreenState extends State<Loginscreen> {
   Future<Map<String, dynamic>?> getFirstUserData() async {
     try {
       final db = await database;
+      await _createLoginTable(db); // Ensure table exists
       final List<Map<String, dynamic>> maps = await db.query(
         'login_data',
         orderBy: 'id ASC', // Always get the first user
@@ -394,6 +398,7 @@ class _LoginscreenState extends State<Loginscreen> {
   Future<void> clearLoginData() async {
     try {
       final db = await database;
+      await _createLoginTable(db); // Ensure table exists
 
       // Get first user info before deleting
       final firstUser = await getFirstUserData();
@@ -1140,7 +1145,7 @@ class _LoginscreenState extends State<Loginscreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0, top: 8.0),
                   child: Text(
-                    'V.3.0.0',
+                    'V.4.0.2',
                     style: TextStyle(
                       fontSize: screenWidth * 0.035,
                       color: Colors.grey,

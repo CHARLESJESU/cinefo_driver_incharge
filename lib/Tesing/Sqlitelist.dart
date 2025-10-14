@@ -756,6 +756,12 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                             'attendance_status']),
                                                     _buildDetailRow(
                                                         'Mode', item['mode']),
+                                                    _buildDetailRow(
+                                                        'attendanceDate',
+                                                        item['attendanceDate']),
+                                                    _buildDetailRow(
+                                                        'attendanceTime',
+                                                        item['attendanceTime']),
                                                   ]
                                                 : [
                                                     _buildDetailRow(
@@ -813,6 +819,21 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                         'Created At',
                                                         _formatDate(item[
                                                             'created_at'])),
+                                                    _buildDetailRow(
+                                                        'Created time',
+                                                        item[
+                                                            'created_at_time']),
+                                                    _buildDetailRow(
+                                                        'Created date',
+                                                        item['created_date']),
+                                                    _buildDetailRow(
+                                                        'pack_up_time',
+                                                        item['pack_up_time']),
+                                                    _buildDetailRow(
+                                                        'pack_up_date',
+                                                        item['pack_up_date']),
+                                                    _buildDetailRow('isonline',
+                                                        item['isonline']),
                                                   ],
                                   ),
                                 ),

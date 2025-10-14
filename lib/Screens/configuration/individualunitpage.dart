@@ -1,28 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
-import 'package:production/variables.dart';
+import 'package:production/Screens/configuration/unitmemberperson.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
+import 'package:production/variables.dart';
 import 'dart:convert';
-import 'individualunitpage.dart';
 
-class ConfigurationScreen extends StatefulWidget {
+class Individualunitpage extends StatefulWidget {
   final Map<String, dynamic> callsheet;
+  final String config_unitname;
+  final int config_unitid;
   final int callsheetid;
-  const ConfigurationScreen(
-      {super.key, required this.callsheetid, required this.callsheet});
+
+  const Individualunitpage({
+    super.key,
+    required this.config_unitname,
+    required this.callsheet,
+    required this.config_unitid,
+    required this.callsheetid,
+  });
 
   @override
-  State<ConfigurationScreen> createState() => _ConfigurationScreenState();
+  State<Individualunitpage> createState() => _IndividualunitpageState();
 }
 
-class _ConfigurationScreenState extends State<ConfigurationScreen> {
+class _IndividualunitpageState extends State<Individualunitpage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _responseUnits = [];
   String _errorMessage = "";
-
-  // Function to fetch login data and make HTTP request
   Future<void> fetchLoginDataAndMakeRequest() async {
     setState(() {
       _isLoading = true;
@@ -42,12 +47,10 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
       );
 
       if (loginRows.isNotEmpty && loginRows.first['vpoid'] != null) {
-        int? vpoidValue =
-            int.tryParse(loginRows.first['vpoid']?.toString() ?? '');
         String? vsidValue = loginRows.first['vsid']?.toString();
 
         // Prepare payload
-        final payload = {"vpoid": vpoidValue};
+        final payload = {"unitId": config_unitid, "showid": 1};
 
         try {
           // Make HTTP POST request
@@ -56,7 +59,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
                 processSessionRequest,
                 headers: {
                   'Content-Type': 'application/json; charset=UTF-8',
-                  'VMETID': vmetid_fetch_unit,
+                  'VMETID': vmetid_fetch_config_unit_allowance,
                   'VSID': vsidValue ?? "",
                 },
                 body: jsonEncode(payload),
@@ -79,11 +82,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
 
                 for (var item in responseDataList) {
                   if (item is Map<String, dynamic> &&
-                      item.containsKey('unitid') &&
-                      item.containsKey('unitType')) {
+                      item.containsKey('callsheetConfigid') &&
+                      item.containsKey('callsheetConfigName')) {
                     units.add({
-                      'unitid': item['unitid'],
-                      'unitType': item['unitType'],
+                      'callsheetConfigid': item['callsheetConfigid'],
+                      'callsheetConfigName': item['callsheetConfigName'],
                     });
                   }
                 }
@@ -163,22 +166,11 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: const Text("Configuration",
+            title: Text('${widget.config_unitname} Configuration',
                 style: TextStyle(color: Colors.white)),
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-              ),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => OfflineCallsheetDetailScreen(
-                          callsheet: widget.callsheet))),
-            ),
+            iconTheme: IconThemeData(color: Colors.white),
           ),
           body: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -286,41 +278,31 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
                                         width: double.infinity,
                                         child: ElevatedButton(
                                           onPressed: () {
-                                            // Assign unitid to config_unitid
-                                            int selectedUnitId = unit['unitid']
-                                                    is int
-                                                ? unit['unitid']
-                                                : int.tryParse(unit['unitid']
-                                                        .toString()) ??
-                                                    0;
                                             String selectedUnitName =
-                                                unit['unitType'] ?? 'Unknown';
+                                                unit['callsheetConfigName'] ??
+                                                    'Unknown';
 
                                             // Set global variables
-                                            config_unitid = selectedUnitId;
                                             config_unitname = selectedUnitName;
 
                                             print(
-                                                'Selected Unit ID: ${unit['unitid']}');
-                                            print(
-                                                'config_unitid set to: $config_unitid');
-                                            print(
-                                                'config_unitname set to: $config_unitname');
+                                                'Selected Unit ID: ${unit['callsheetConfigid']}');
 
                                             // Navigate to individual unit page with parameters
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) =>
-                                                    Individualunitpage(
-                                                        callsheet:
-                                                            widget.callsheet,
-                                                        config_unitid:
-                                                            selectedUnitId,
-                                                        config_unitname:
-                                                            selectedUnitName,
-                                                        callsheetid:
-                                                            widget.callsheetid),
+                                                    Unitmemberperson(
+                                                  callsheet: widget.callsheet,
+                                                  config_unitid:
+                                                      unit['callsheetConfigid'],
+                                                  unitid: widget.config_unitid,
+                                                  config_unitname:
+                                                      selectedUnitName,
+                                                  callsheetid:
+                                                      widget.callsheetid,
+                                                ),
                                               ),
                                             );
                                           },
@@ -339,7 +321,8 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
                                                 MainAxisAlignment.center,
                                             children: [
                                               Text(
-                                                unit['unitType'] ?? 'Unknown',
+                                                unit['callsheetConfigName'] ??
+                                                    'Unknown',
                                                 style: TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.bold,
@@ -348,7 +331,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
                                               ),
                                               SizedBox(height: 5),
                                               Text(
-                                                'ID: ${unit['unitid']}',
+                                                'ID: ${unit['callsheetConfigid']}',
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: Colors.white70,

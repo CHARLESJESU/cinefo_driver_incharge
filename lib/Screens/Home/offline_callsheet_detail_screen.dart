@@ -3,8 +3,9 @@ import 'package:production/Screens/Attendance/intime.dart';
 import 'package:production/Screens/Attendance/nfcnotifier.dart';
 import 'package:production/Screens/Attendance/outtimecharles.dart';
 import 'package:production/Screens/Home/colorcode.dart';
+import 'package:production/Screens/Route/RouteScreen.dart';
 import 'package:production/Screens/configuration/configuration.dart';
-import 'package:production/Screens/callsheet/closecallsheet.dart';
+import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/variables.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -35,9 +36,20 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
       for (var row in allRows) {
         print(row['callSheetNo']);
       }
+      // Get current date and time
+      final DateTime now = DateTime.now();
+      final String currentDate =
+          "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}";
+      final String currentTime =
+          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+
       int result = await db.update(
         'callsheetoffline',
-        {'status': 'closed'},
+        {
+          'status': 'closed',
+          'pack_up_date': currentDate,
+          'pack_up_time': currentTime,
+        },
         where: 'callSheetNo = ?',
         whereArgs: [callSheetNo],
       );
@@ -123,7 +135,8 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
             Icons.arrow_back,
             color: Colors.white,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => Routescreen())),
         ),
       ),
       backgroundColor: const Color.fromRGBO(247, 244, 244, 1),
@@ -375,26 +388,6 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                             ),
                           ),
                           GestureDetector(
-                            onTap: enableCloseButton
-                                ? () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => CloseCallSheet(),
-                                      ),
-                                    );
-                                  }
-                                : null, // Disable tap when not enabled
-                            child: _actionButton(
-                              "Close callsheet",
-                              Icons.assignment_turned_in,
-                              enableCloseButton
-                                  ? AppColors.primaryLight
-                                  : Colors.grey,
-                              enabled: enableCloseButton,
-                            ),
-                          ),
-                          GestureDetector(
                             onTap: enableAttendanceButtons
                                 ? () {
                                     print('Out-time tapped. productionTypeId: '
@@ -450,7 +443,11 @@ class OfflineCallsheetDetailScreen extends StatelessWidget {
                                             context,
                                             MaterialPageRoute(
                                                 builder: (_) =>
-                                                    const ConfigurationScreen()));
+                                                    ConfigurationScreen(
+                                                        callsheet: callsheet,
+                                                        callsheetid: callsheet[
+                                                                'callSheetId'] ??
+                                                            0)));
                                       }
                                     }
                                   : null, // Disable tap when not enabled

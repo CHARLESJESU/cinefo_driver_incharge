@@ -46,10 +46,12 @@ Future<void> createCallSheetFromOffline(
     "vpoid": vpoid ?? '',
     "vbpid": vbpid ?? '',
     "productionTypeid": productionTypeId ?? '',
-    "location": callsheetData['location'] ?? '',
-    "locationType": callsheetData['locationType'] ?? '',
+    "date": callsheetData['created_at'] ?? '',
+    "createdDate": callsheetData['created_date'] ?? '',
+    "createdTime": callsheetData['created_at_time'] ?? '',
     "locationTypeId": callsheetData['locationTypeId'] ?? '',
-    "created_at": callsheetData['created_at'] ?? '',
+    "locationType": callsheetData['locationType'] ?? '',
+    "location": callsheetData['location'] ?? '',
   };
   final response = await http.post(
     processSessionRequest,
@@ -145,7 +147,10 @@ Future<void> createCallSheetFromOffline(
                 "projectid": projectId,
                 "shiftid": callsheetData['shiftId'],
                 "callSheetStatusId": 3,
-                "callSheetTime": DateFormat('HH:mm').format(DateTime.now())
+                "callSheetTime": callsheetData['pack_up_time'] ??
+                    DateFormat('HH:mm').format(DateTime.now()),
+                "callsheetcloseDate": callsheetData['pack_up_date'] ??
+                    DateFormat('yyyy-MM-dd').format(DateTime.now()),
               }),
             );
             print(payload);
@@ -289,7 +294,10 @@ Future<void> createCallSheetFromOffline(
                 "projectid": projectId,
                 "shiftid": callsheetData['shiftId'],
                 "callSheetStatusId": 3,
-                "callSheetTime": DateFormat('HH:mm').format(DateTime.now())
+                "callSheetTime": callsheetData['pack_up_time'] ??
+                    DateFormat('HH:mm').format(DateTime.now()),
+                "callsheetcloseDate": callsheetData['pack_up_date'] ??
+                    DateFormat('yyyy-MM-dd').format(DateTime.now()),
               }),
             );
             print(payload);
