@@ -5,7 +5,7 @@ import 'package:production/Screens/Attendance/dailogei.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  IntimeSyncService().startSync(); // Start background FIFO sync at app startup
+  // IntimeSyncService().startSync(); // Start background FIFO sync at app startup
   runApp(
     // MultiProvider(
     //   providers: [

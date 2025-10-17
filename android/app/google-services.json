@@ -310,7 +310,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:228919231041:android:2b3cf452157c1ae640bcc0",
         "android_client_info": {
-          "package_name": "com.vlabs.cinefo_production"
+          "package_name": "com.vlabs.cinefo_driver"
         }
       },
       "oauth_client": [
@@ -318,7 +318,7 @@
           "client_id": "228919231041-tica093hqo22f8fle8nrvtdh4q5mtt4u.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.vlabs.cinefo_production",
+            "package_name": "com.vlabs.cinefo_driver",
             "certificate_hash": "38ae2a7c58bdf40ccc59e2b3d01927c54d63a850"
           }
         },

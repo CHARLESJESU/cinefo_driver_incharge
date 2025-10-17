@@ -3,8 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/variables.dart';
 import 'package:production/Screens/Login/loginscreen.dart';
-import 'package:production/Screens/Home/MyHomescreen.dart';
-import 'package:production/Screens/Route/RouteScreen.dart';
+import 'package:production/Screens/Route/RouteScreenfordriver.dart';
+import 'package:production/Screens/Route/RouteScreenforincharge.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,6 +30,11 @@ class _SplashScreenState extends State<SplashScreen> {
       final loginData = await _getActiveLoginData();
 
       if (loginData != null) {
+        print('🔍 DEBUG: Login data found');
+        print('🔍 DEBUG: VSID: ${loginData['vsid']}');
+        print('🔍 DEBUG: Driver: ${loginData['driver']}');
+        print('🔍 DEBUG: Manager: ${loginData['manager_name']}');
+
         // Load stored data into global variables
         _loadStoredDataIntoVariables(loginData);
 
@@ -43,12 +48,46 @@ class _SplashScreenState extends State<SplashScreen> {
             );
           }
         } else {
-          // Navigate to home screen if vsid exists
+          // vsid exists - decide route based on driver flag
+          final dynamic driverFlag = loginData['driver'];
+          print('🔍 DEBUG: VSID exists: ${loginData['vsid']}');
+          print('🔍 DEBUG: Driver flag value: $driverFlag');
+          print('🔍 DEBUG: Driver flag type: ${driverFlag.runtimeType}');
+
+          bool isDriver = false;
+          // Accept several representations: int 1, bool true, string '1' or 'true'
+          if (driverFlag is int && driverFlag == 1) {
+            isDriver = true;
+            print('🔍 DEBUG: Driver flag matched as int 1');
+          }
+          if (driverFlag is bool && driverFlag == true) {
+            isDriver = true;
+            print('🔍 DEBUG: Driver flag matched as bool true');
+          }
+          if (driverFlag is String &&
+              (driverFlag == '1' || driverFlag.toLowerCase() == 'true')) {
+            isDriver = true;
+            print('🔍 DEBUG: Driver flag matched as string');
+          }
+
+          print('🔍 DEBUG: Final isDriver value: $isDriver');
+
           if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Routescreen()),
-            );
+            if (isDriver) {
+              print('🚗 DEBUG: Navigating to Routescreenfordriver');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const Routescreenfordriver()),
+              );
+            } else {
+              print('👔 DEBUG: Navigating to RoutescreenforIncharge');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const RoutescreenforIncharge()),
+              );
+            }
           }
         }
       } else {
@@ -90,8 +129,6 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  // Check internet connectivity
-
   // Get any login data from SQLite (check if table has any records)
   Future<Map<String, dynamic>?> _getActiveLoginData() async {
     try {
@@ -124,14 +161,25 @@ class _SplashScreenState extends State<SplashScreen> {
     productionHouse = loginData['production_house'];
     vmid = loginData['vmid'];
 
+    // Convert driver field from int to bool (database stores as int, variable expects bool)
+    final driverValue = loginData['driver'];
+    if (driverValue is int) {
+      driver = driverValue == 1;
+    } else if (driverValue is bool) {
+      driver = driverValue;
+    } else {
+      driver = false; // default to false if null or other type
+    }
+
     // Set mobile number and password in controllers
     loginmobilenumber.text = loginData['mobile_number'] ?? '';
     loginpassword.text = loginData['password'] ?? '';
 
     print('Loaded stored data: Manager=$managerName, Movie=$registeredMovie');
+    print(
+        '🔍 DEBUG: Converted driver value $driverValue (${driverValue.runtimeType}) to bool: $driver');
   }
 
-  // Main connectivity check and flow control
   @override
   void dispose() {
     _database?.close();

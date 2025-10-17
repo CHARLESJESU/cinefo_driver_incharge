@@ -3,19 +3,20 @@ import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
-import 'package:production/Screens/Trip/createtrip.dart';
+import 'package:production/Screens/trip/createtrip.dart';
 import 'package:production/variables.dart';
 
-class Routescreen extends StatefulWidget {
+class RoutescreenforIncharge extends StatefulWidget {
   final int initialIndex;
 
-  const Routescreen({super.key, this.initialIndex = 0}); // Default to Home tab
+  const RoutescreenforIncharge(
+      {super.key, this.initialIndex = 0}); // Default to Home tab
 
   @override
-  State<Routescreen> createState() => _RoutescreenState();
+  State<RoutescreenforIncharge> createState() => _RoutescreenforInchargeState();
 }
 
-class _RoutescreenState extends State<Routescreen> {
+class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
   int _currentIndex = 0;
 
   @override
@@ -56,6 +57,10 @@ class _RoutescreenState extends State<Routescreen> {
                         ),
                         BottomNavigationBarItem(
                           icon: Icon(Icons.add_circle_outline),
+                          label: 'Trip',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.list),
                           label: 'Callsheet',
                         ),
                         BottomNavigationBarItem(
@@ -98,8 +103,17 @@ class _RoutescreenState extends State<Routescreen> {
           // For productionTypeId == 2 or any other case
           return Createtrip();
         }
-
       case 2:
+        if (productionTypeId == 3) {
+          return (selectedProjectId != null && selectedProjectId != "0")
+              ? CallSheet()
+              : const MovieListScreen();
+        } else {
+          // For productionTypeId == 2 or any other case
+          return CallSheet();
+        }
+
+      case 3:
         return Reports(
           projectId: projectid.toString(),
           callsheetid: callsheetid.toString(),

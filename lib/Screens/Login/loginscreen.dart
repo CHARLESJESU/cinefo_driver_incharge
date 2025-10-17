@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:ota_update/ota_update.dart';
-import 'package:production/Screens/Route/RouteScreen.dart';
+import 'package:production/Screens/Route/RouteScreenforincharge.dart';
+import 'package:production/Screens/Route/RouteScreenfordriver.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
-import 'package:flutter_device_imei/flutter_device_imei.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -49,7 +49,6 @@ class _LoginscreenState extends State<Loginscreen> {
           production_house TEXT,
           vmid INTEGER,
           login_date TEXT,
-          device_id TEXT,
           vsid TEXT,
           vpid TEXT,
           vuid INTEGER,
@@ -66,7 +65,8 @@ class _LoginscreenState extends State<Loginscreen> {
           vpidpo INTEGER,
           vpidbp INTEGER,
           unitid INTEGER,
-          platformlogo TEXT
+          platformlogo TEXT,
+          driver BOOLEAN DEFAULT 0
         )
       ''');
       print('✅ SQLite login_data table created/verified successfully');
@@ -260,22 +260,24 @@ class _LoginscreenState extends State<Loginscreen> {
 
         // Prepare login data for first user
         final loginData = {
-          'manager_name': managerName ?? '',
+          'manager_name': loginresponsebody?['responseData']?['fname'] ?? '',
           'profile_image': ProfileImage ?? '',
-          'registered_movie': registeredMovie ?? '',
+          'registered_movie':
+              loginresponsebody?['responseData']?['projectName'] ?? '',
           'mobile_number': loginmobilenumber.text,
           'password': loginpassword.text,
-          'project_id': projectId ?? '',
-          'production_type_id': productionTypeId ?? 0,
-          'production_house': productionHouse ?? '',
-          'vmid': vmid ?? 0,
+          'project_id': loginresponsebody?['responseData']?['projectId'] ?? '',
+          'production_type_id':
+              loginresponsebody?['responseData']?['productionTypeId'] ?? 0,
+          'production_house':
+              loginresponsebody?['responseData']?['productionHouse'] ?? '',
+          'vmid': loginresponsebody?['responseData']?['vmid'] ?? 0,
           'login_date': DateTime.now().toIso8601String(),
-          'device_id': _deviceId,
           'vsid': loginresponsebody?['vsid']?.toString() ?? '',
           'vpid': loginresponsebody?['vpid']?.toString() ?? '',
           'vuid': loginresponsebody?['vuid'] ?? 0,
-          'companyName': loginresponsebody?['companyName']?.toString() ?? '',
-          'email': loginresponsebody?['email']?.toString() ?? '',
+          // 'companyName': loginresponsebody?['companyName']?.toString() ?? '',
+          // 'email': loginresponsebody?['email']?.toString() ?? '',
           'vbpid': loginresponsebody?['vbpid'] ?? 0,
           'vcid': loginresponsebody?['vcid'] ?? 0,
           'vsubid': loginresponsebody?['vsubid'] ?? 0,
@@ -288,6 +290,7 @@ class _LoginscreenState extends State<Loginscreen> {
           'vpidbp': loginresponsebody?['vpidbp'] ?? 0,
           'unitid': loginresponsebody?['unitid'] ?? 0,
           'platformlogo': loginresponsebody?['platformlogo']?.toString() ?? '',
+          'driver': 0, // Default value, will be updated based on navigation
         };
 
         print(
@@ -394,6 +397,111 @@ class _LoginscreenState extends State<Loginscreen> {
     }
   }
 
+  // Update specific login data fields for driver response
+  Future<void> updateDriverLoginData(
+      String projectName, String projectId, String productionHouse) async {
+    print('🔄 updateDriverLoginData called');
+    print('🔍 Input values:');
+    print('  projectName: "$projectName"');
+    print('  projectId: "$projectId"');
+    print('  productionHouse: "$productionHouse"');
+
+    try {
+      print('🔄 Getting database connection...');
+      final db = await database;
+      await _createLoginTable(db); // Ensure table exists
+      print('✅ Database connection obtained');
+
+      // Get the first user's ID
+      print('🔄 Getting first user data...');
+      final firstUser = await getFirstUserData();
+      if (firstUser != null) {
+        final userId = firstUser['id'];
+        print('✅ Found user with ID: $userId');
+
+        // Show current data before update
+        print('🔍 Current data before update:');
+        print('  registered_movie: "${firstUser['registered_movie']}"');
+        print('  project_id: "${firstUser['project_id']}"');
+        print('  production_house: "${firstUser['production_house']}"');
+
+        // Update the first user's data
+        print('🔄 Performing database update...');
+        final updateCount = await db.update(
+          'login_data',
+          {
+            'registered_movie': projectName,
+            'project_id': projectId,
+            'production_house': productionHouse,
+          },
+          where: 'id = ?',
+          whereArgs: [userId],
+        );
+
+        print('📊 Update count: $updateCount');
+
+        if (updateCount > 0) {
+          print('✅ Driver login data updated successfully');
+          print('📝 Updated registered_movie: $projectName');
+          print('📝 Updated project_id: $projectId');
+          print('📝 Updated production_house: $productionHouse');
+
+          // Verify the update by reading back the data
+          final updatedUser = await getFirstUserData();
+          if (updatedUser != null) {
+            print('🔍 Verified updated data:');
+            print('  registered_movie: "${updatedUser['registered_movie']}"');
+            print('  project_id: "${updatedUser['project_id']}"');
+            print('  production_house: "${updatedUser['production_house']}"');
+          }
+        } else {
+          print('⚠️ Failed to update login data - updateCount is 0');
+        }
+      } else {
+        print('⚠️ No login data found to update - firstUser is null');
+      }
+    } catch (e) {
+      print('❌ Error updating driver login data: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $e');
+    }
+
+    print('🏁 updateDriverLoginData completed');
+  }
+
+  // Update driver field based on navigation route
+  Future<void> updateDriverField(bool isDriver) async {
+    try {
+      print('🔄 Updating driver field to: $isDriver');
+      final db = await database;
+      await _createLoginTable(db); // Ensure table exists
+
+      // Get the first user's ID
+      final firstUser = await getFirstUserData();
+      if (firstUser != null) {
+        final userId = firstUser['id'];
+
+        // Update the driver field
+        final updateCount = await db.update(
+          'login_data',
+          {'driver': isDriver ? 1 : 0},
+          where: 'id = ?',
+          whereArgs: [userId],
+        );
+
+        if (updateCount > 0) {
+          print('✅ Driver field updated successfully to: $isDriver');
+        } else {
+          print('⚠️ Failed to update driver field');
+        }
+      } else {
+        print('⚠️ No user found to update driver field');
+      }
+    } catch (e) {
+      print('❌ Error updating driver field: $e');
+    }
+  }
+
   // Clear first user login data (removes the registered first user)
   Future<void> clearLoginData() async {
     try {
@@ -421,113 +529,10 @@ class _LoginscreenState extends State<Loginscreen> {
   }
 
   bool _isLoading = false;
-  String? deviceId;
-  Map? getdeviceidresponse;
+  bool _obscureText = true;
   String? managerName;
   String? ProfileImage;
-
   int? vmid;
-  bool screenloading = false;
-  bool _obscureText = true;
-  String _deviceId = 'Unknown';
-
-  Future<void> _initDeviceId() async {
-    String deviceId = 'Unknown';
-    try {
-      deviceId = await FlutterDeviceImei.instance.getIMEI() ?? 'Unknown';
-      print('📱 Device IMEI: $deviceId');
-    } catch (e) {
-      print('❌ Error getting device IMEI: $e');
-      deviceId = 'Error-${DateTime.now().millisecondsSinceEpoch}';
-    }
-    if (!mounted) return;
-    setState(() {
-      _deviceId = deviceId;
-    });
-    print('🔑 Final Device ID: $_deviceId');
-  }
-
-  Future<void> initializeDevice() async {
-    try {
-      await _initDeviceId();
-      if (_deviceId != 'Unavailable' && !_deviceId.startsWith('Failed')) {
-        await passDeviceId();
-      } else {
-        print('Device ID not available: $_deviceId');
-        // Set managerName to null to show error UI
-        setState(() {
-          managerName = null;
-        });
-      }
-    } catch (e) {
-      print('Error in initializeDevice: $e');
-      setState(() {
-        managerName = null;
-      });
-    }
-  }
-
-  // No permission request needed for flutter_device_imei
-
-  Future<void> passDeviceId() async {
-    setState(() {
-      screenloading = true;
-    });
-
-    try {
-      final response = await http.post(
-        processRequest,
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'VMETID':
-              'MIUzptHJWQqh0+/ytZy1/Hcjc8DfNH6OdiYJYg8lXd4nQLHlsRlsZ/k6G1uj/hY5w96n9dAg032gjp9ygMGCtg0YSlEgpXVPCWi79/pGZz6Motai4bYdua29xKvWVn8X0U87I/ZG6NCwYSCAdk9/6jYc75hCyd2z59F0GYorGNPLmkhGodpfabxRr8zheVXRnG9Ko2I7/V2Y83imaiRpF7k+g43Vd9XLFPVsRukcfkxWatuW336BEKeuX6Ts9JkY0Y9BKv4IdlHkOKwgxMf22zBV7IoJkL1XlGJlVCTsvchYN9Lx8NXQksxK8UPPMbU1hCRY4Jbr0/IIfntxd4vsng==',
-        },
-        body: jsonEncode(<String, dynamic>{"deviceid": _deviceId.toString()}),
-      );
-
-      setState(() {
-        screenloading = false;
-      });
-
-      if (response.statusCode == 200) {
-        print("Device ID response: ${response.body}");
-        getdeviceidresponse = json.decode(response.body);
-
-        if (getdeviceidresponse != null &&
-            getdeviceidresponse!['responseData'] != null &&
-            getdeviceidresponse!['responseData'] is List &&
-            (getdeviceidresponse!['responseData'] as List).isNotEmpty) {
-          setState(() {
-            final responseData = getdeviceidresponse!['responseData'][0];
-            projectId = responseData['projectId'] ?? "";
-            managerName = responseData['managerName'] ?? "Unknown";
-            ProfileImage = responseData['profileImage'] ?? "Unknown";
-            registeredMovie = responseData['projectName'] ?? "N/A";
-            vmid = responseData['vmId'] ?? "N/A";
-            productionTypeId = responseData['productionTypeId'] ?? 0;
-            productionHouse = responseData['productionHouse'] ?? "N/A";
-          });
-        } else {
-          print("Warning: responseData is null, not a list, or empty");
-          setState(() {
-            managerName = null; // This will trigger the error message UI
-          });
-        }
-        print("Device ID sent successfully!");
-      } else {
-        print("Failed to send Device ID: ${response.body}");
-        setState(() {
-          managerName = null; // Trigger error message UI on failed request
-        });
-      }
-    } catch (e) {
-      print("Error in passDeviceId: $e");
-      setState(() {
-        screenloading = false;
-        managerName = null; // Trigger error message UI on exception
-      });
-    }
-  }
 
   Future<void> baseurl() async {
     try {
@@ -537,8 +542,8 @@ class _LoginscreenState extends State<Loginscreen> {
           'VMETID':
               'byrZ4bZrKm09R4O7WH6SPd7tvAtGnK1/plycMSP8sD5TKI/VZR0tHBKyO/ogYUIf4Qk6HJXvgyGzg58v0xmlMoRJABt3qUUWGtnJj/EKBsrOaFFGZ6xAbf6k6/ktf2gKsruyfbF2/D7r1CFZgUlmTmubGS1oMZZTSU433swBQbwLnPSreMNi8lIcHJKR2WepQnzNkwPPXxA4/XuZ7CZqqsfO6tmjnH47GoHr7H+FC8GK24zU3AwGIpX+Yg/efeibwapkP6mAya+5BTUGtNtltGOm0q7+2EJAfNcrSTdmoDB8xBerLaNNHhwVHowNIu+8JZl2QM0F/gmVpB55cB8rqg=='
         },
-        body: jsonEncode(
-            <String, String>{"baseURL": "producermember.cinefo.club"}),
+        body:
+            jsonEncode(<String, String>{"baseURL": "drivermember.cinefo.club"}),
       );
       if (response.statusCode == 200) {
         final responseBody = json.decode(response.body);
@@ -580,7 +585,7 @@ class _LoginscreenState extends State<Loginscreen> {
           'DEVICETYPE': '2',
           'Content-Type': 'application/json; charset=UTF-8',
           'VPID': baseurlresult?['vpid']?.toString() ?? '',
-          "BASEURL": "producermember.cinefo.club",
+          "BASEURL": "drivermember.cinefo.club",
           'VPTEMPLATEID': baseurlresult?['vptemplteID']?.toString() ?? '',
           'VMETID':
               'jcd3r0UZg4FnqnFKCfAZqwj+d5Y7TJhxN6vIvKsoJIT++90iKP3dELmti79Q+W7aVywvVbhfoF5bdW32p33PbRRTT27Jt3pahRrFzUe5s0jQBoeE0jOraLITDQ6RBv0QoscoOGxL7n0gEWtLE15Bl/HSF2kG5pQYft+ZyF4DNsLf7tGXTz+w/30bv6vMTGmwUIDWqbEet/+5AAjgxEMT/G4kiZifX0eEb3gMxycdMchucGbMkhzK+4bvZKmIjX+z6uz7xqb1SMgPnjKmoqCk8w833K9le4LQ3KSYkcVhyX9B0Q3dDc16JDtpEPTz6b8rTwY8puqlzfuceh5mWogYuA==',
@@ -644,10 +649,28 @@ class _LoginscreenState extends State<Loginscreen> {
             // Only navigate after dialog is handled
             if (didUpdate || updateTypeId != 1) {
               if (mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => Routescreen()),
-                );
+                // Check if user is a driver (unitid == 9) before navigation
+                if (responseBody['unitid'] != 9) {
+                  // Show dialog for non-driver users
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text('Access Denied'),
+                        content: Text('You are not a driver'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Text('OK'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
               }
             }
           } else {
@@ -658,6 +681,20 @@ class _LoginscreenState extends State<Loginscreen> {
             setState(() {
               loginresponsebody = responseBody;
               loginresult = responseBody['responseData'];
+
+              // Update global variables from login response
+              if (responseBody['responseData'] is Map) {
+                final responseData = responseBody['responseData'];
+                projectId = responseData['projectId'] ?? '';
+                managerName = responseData['managerName'] ?? '';
+                registeredMovie = responseData['projectName'] ?? '';
+                vmid = responseData['vmid'] ?? 0;
+                productionTypeId = responseData['productionTypeId'] ?? 0;
+                productionHouse = responseData['productionHouse'] ?? '';
+                ProfileImage = responseData['profileImage'] ?? '';
+
+                print('📊 Updated global variables from login response');
+              }
 
               // Update ProfileImage from login response if available
               // Check multiple possible locations for profileImage
@@ -695,100 +732,205 @@ class _LoginscreenState extends State<Loginscreen> {
               }
             });
 
-            if (productionTypeId == 3) {
-              // Update ProfileImage from login response before saving
-              String? loginProfileImage;
+            // Update ProfileImage from login response before saving
+            String? loginProfileImage;
 
-              if (responseBody['responseData'] is Map &&
-                  responseBody['responseData']['profileImage'] != null) {
-                loginProfileImage =
-                    responseBody['responseData']['profileImage'];
+            if (responseBody['responseData'] is Map &&
+                responseBody['responseData']['profileImage'] != null) {
+              loginProfileImage = responseBody['responseData']['profileImage'];
+              print(
+                  '📸 Found ProfileImage in responseData map: $loginProfileImage');
+            } else if (responseBody['responseData'] is List &&
+                (responseBody['responseData'] as List).isNotEmpty) {
+              final firstItem = (responseBody['responseData'] as List)[0];
+              if (firstItem is Map && firstItem['profileImage'] != null) {
+                loginProfileImage = firstItem['profileImage'];
                 print(
-                    '📸 Found ProfileImage in responseData map: $loginProfileImage');
-              } else if (responseBody['responseData'] is List &&
-                  (responseBody['responseData'] as List).isNotEmpty) {
-                final firstItem = (responseBody['responseData'] as List)[0];
-                if (firstItem is Map && firstItem['profileImage'] != null) {
-                  loginProfileImage = firstItem['profileImage'];
+                    '📸 Found ProfileImage in responseData list[0]: $loginProfileImage');
+              }
+            } else if (responseBody['profileImage'] != null) {
+              loginProfileImage = responseBody['profileImage'];
+              print(
+                  '📸 Found ProfileImage in root response: $loginProfileImage');
+            }
+
+            if (loginProfileImage != null &&
+                loginProfileImage.isNotEmpty &&
+                loginProfileImage != 'Unknown') {
+              ProfileImage = loginProfileImage;
+              print('📸 Updated ProfileImage before saving: $ProfileImage');
+            }
+
+            // Save login data to SQLite after successful login
+            print('🔄 Saving login data...');
+            await saveLoginData();
+
+            // Check if user is a driver (unitid == 9)
+            if (mounted) {
+              if (loginresponsebody?['unitid'] == 9) {
+                // Make additional HTTP request for drivers
+                try {
                   print(
-                      '📸 Found ProfileImage in responseData list[0]: $loginProfileImage');
-                }
-              } else if (responseBody['profileImage'] != null) {
-                loginProfileImage = responseBody['profileImage'];
-                print(
-                    '📸 Found ProfileImage in root response: $loginProfileImage');
-              }
+                      '🚗 User is a driver (unitid == 9), making additional request...');
+                  final driverResponse = await http.post(
+                    processSessionRequest,
+                    headers: <String, String>{
+                      'Content-Type': 'application/json; charset=UTF-8',
+                      'VMETID':
+                          'P8eqnuQ9H24nzw+j/Oq8qih3vw9biFxC4i2XpRLOiSOcHiiqKN5II1gsqhUCeEM5TXUq+Hl19zup0tT7YnANhHFUL5HX9awoCOuKdn+nbYUX4OV3p5oIdjfLmdXQqc4JwrnpQy3kVFX2qtPPooFy9kIRzSjEKcQd0Rhqg4CuDYUxiBVesHhZdpAiTvRvrd4VOreauP6FysEt72O7XhOWvZilN9hQv8mQ+5ALfBFOrTuRu+9P7FczirlqCdUMFhXa64XTupbb4acIq2+bTYBd0I5isowfPBRKFc+GJcJEFnhCknqpDq/r9yxowFOcJUgIMjc0Tc3/S4JiasDqIiouYQ==',
+                      'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+                    },
+                    body: jsonEncode(<String, dynamic>{
+                      "vmId": loginresponsebody?['responseData']?['vmid'] ?? 0,
+                    }),
+                  );
 
-              if (loginProfileImage != null &&
-                  loginProfileImage.isNotEmpty &&
-                  loginProfileImage != 'Unknown') {
-                ProfileImage = loginProfileImage;
-                print(
-                    '📸 Updated ProfileImage before saving (prod type 3): $ProfileImage');
-              } else {
-                print(
-                    '⚠️ No valid ProfileImage found for prod type 3, keeping existing: $ProfileImage');
-              }
-
-              // Save login data to SQLite after successful login
-              print('🔄 Production type 3 - saving login data...');
-              await saveLoginData();
-
-              if (mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => Routescreen()),
-                );
-              }
-            } else {
-              print(productionTypeId);
-              final loginVmid = loginresult?['vmid'];
-              if (vmid != null && loginVmid != null && vmid == loginVmid) {
-                // Update ProfileImage from login response if available
-                String? loginProfileImage;
-
-                if (loginresult is Map &&
-                    loginresult?['profileImage'] != null) {
-                  loginProfileImage = loginresult!['profileImage'];
                   print(
-                      '📸 Found ProfileImage in loginresult map: $loginProfileImage');
-                } else if (loginresult is List &&
-                    (loginresult as List).isNotEmpty) {
-                  final firstItem = (loginresult as List)[0];
-                  if (firstItem is Map && firstItem['profileImage'] != null) {
-                    loginProfileImage = firstItem['profileImage'];
+                      '🚗 Driver HTTP Response Status: ${driverResponse.statusCode}');
+                  print('🚗 Driver HTTP Response Body: ${driverResponse.body}');
+
+                  if (driverResponse.statusCode == 200) {
+                    try {
+                      final driverResponseBody =
+                          json.decode(driverResponse.body);
+                      print('🚗 Driver Response JSON: $driverResponseBody');
+                      print(
+                          '🚗 Driver Response Keys: ${driverResponseBody.keys.toList()}');
+
+                      // Update SQLite with driver response data - Access nested responseData
+                      final responseData = driverResponseBody['responseData'];
+                      final projectName =
+                          responseData?['projectName']?.toString() ?? '';
+                      final projectId =
+                          responseData?['projectId']?.toString() ?? '';
+                      final productionHouse =
+                          responseData?['productionHouse']?.toString() ?? '';
+
+                      print('🔍 Extracted values from responseData:');
+                      print('🔍 projectName: "$projectName"');
+                      print('🔍 projectId: "$projectId"');
+                      print('🔍 productionHouse: "$productionHouse"');
+
+                      // Always try to update, even with empty values for testing
+                      print('🚗 Attempting SQLite update...');
+                      await updateDriverLoginData(
+                          projectName, projectId, productionHouse);
+                      print('🚗 SQLite update call completed');
+
+                      if (projectName.isNotEmpty ||
+                          projectId.isNotEmpty ||
+                          productionHouse.isNotEmpty) {
+                        print('🚗 Updated SQLite with driver response data');
+                      } else {
+                        print(
+                            '⚠️ All driver data fields are empty, but update was attempted');
+                      }
+
+                      // Conditional navigation based on responseData content
+                      if (driverResponseBody['responseData'] != null &&
+                          driverResponseBody['responseData'].toString() !=
+                              '{}' &&
+                          driverResponseBody['responseData']
+                              .toString()
+                              .isNotEmpty) {
+                        print(
+                            '🚗 ResponseData is not empty, navigating to RoutescreenforIncharge');
+
+                        // Update driver field to false for incharge
+                        await updateDriverField(false);
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const RoutescreenforIncharge()),
+                        );
+                      } else {
+                        print(
+                            '🚗 ResponseData is empty, navigating to Routescreenfordriver');
+
+                        // Update driver field to true for driver
+                        await updateDriverField(true);
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const Routescreenfordriver()),
+                        );
+                      }
+                    } catch (e) {
+                      print('❌ Error processing driver response JSON: $e');
+                      print(
+                          '🚗 Raw driver response body: ${driverResponse.body}');
+
+                      // If JSON parsing fails, go to driver screen
+                      print(
+                          '🚗 JSON parsing failed, navigating to Routescreenfordriver');
+
+                      // Update driver field to true for driver
+                      await updateDriverField(true);
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const Routescreenfordriver()),
+                      );
+                    }
+                  } else {
                     print(
-                        '📸 Found ProfileImage in loginresult list[0]: $loginProfileImage');
+                        '❌ Driver response status code: ${driverResponse.statusCode}');
+                    print('❌ Driver response body: ${driverResponse.body}');
+
+                    // If driver response fails, go to driver screen
+                    print(
+                        '🚗 Driver response failed, navigating to Routescreenfordriver');
+
+                    // Update driver field to true for driver
+                    await updateDriverField(true);
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const Routescreenfordriver()),
+                    );
                   }
-                }
+                } catch (e) {
+                  print('❌ Error in driver HTTP request: $e');
 
-                if (loginProfileImage != null &&
-                    loginProfileImage.isNotEmpty &&
-                    loginProfileImage != 'Unknown') {
-                  ProfileImage = loginProfileImage;
+                  // If driver HTTP request fails, go to driver screen
                   print(
-                      '📸 Updated ProfileImage from login result: $ProfileImage');
-                } else {
-                  print(
-                      '⚠️ No valid ProfileImage found in login result, keeping existing: $ProfileImage');
-                }
+                      '🚗 Driver HTTP request failed, navigating to Routescreenfordriver');
 
-                // Save login data to SQLite after successful login
-                print('🔄 VM ID matched - saving login data...');
-                await saveLoginData();
+                  // Update driver field to true for driver
+                  await updateDriverField(true);
 
-                if (mounted) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const Routescreen()),
+                        builder: (context) => const Routescreenfordriver()),
                   );
                 }
               } else {
-                showmessage(
-                    context,
-                    "This device is not registered. Please contact the admin",
-                    "ok");
+                // Show dialog for non-driver users
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text('Access Denied'),
+                      content: Text('You are not a driver'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text('OK'),
+                        ),
+                      ],
+                    );
+                  },
+                );
               }
             }
           } else {
@@ -841,15 +983,10 @@ class _LoginscreenState extends State<Loginscreen> {
       // Test SQLite functionality
       await testSQLite();
 
-      // First load base URL
+      // Load base URL
       print('🌐 Loading base URL...');
       await baseurl();
       print('✅ Base URL loaded');
-
-      // Then initialize device
-      print('📱 Initializing device...');
-      await initializeDevice();
-      print('✅ Device initialization completed');
     } catch (e) {
       print('❌ Error during app initialization: $e');
     }
@@ -919,228 +1056,171 @@ class _LoginscreenState extends State<Loginscreen> {
                   ),
                 ),
                 Expanded(
-                  child: managerName == null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Card(
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(24.0),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.warning_amber_rounded,
-                                        color: Colors.redAccent, size: 48),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'The current device is not configured.\nPlease contact the admin',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: screenWidth * 0.045,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      "$_deviceId",
-                                      style: TextStyle(
-                                          fontSize: screenWidth * 0.05,
-                                          color: Colors.grey[700]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.07),
+                        child: Card(
+                          elevation: 8,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                        )
-                      : Center(
-                          child: SingleChildScrollView(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.07),
-                              child: Card(
-                                elevation: 8,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: screenWidth * 0.06,
-                                    vertical: screenHeight * 0.04,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.06,
+                              vertical: screenHeight * 0.04,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "Login to Continue",
+                                  style: TextStyle(
+                                    fontSize: screenWidth * 0.05,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
                                   ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        "Welcome $managerName!",
-                                        style: TextStyle(
-                                          fontSize: screenWidth * 0.05,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
+                                ),
+                                SizedBox(height: screenHeight * 0.04),
+                                TextFormField(
+                                  controller: loginmobilenumber,
+                                  keyboardType: TextInputType.phone,
+                                  decoration: InputDecoration(
+                                    labelText: 'Mobile Number',
+                                    prefixIcon: Icon(Icons.phone,
+                                        color: Color(0xFF164AE9)),
+                                    labelStyle: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: screenHeight * 0.025),
+                                TextFormField(
+                                  controller: loginpassword,
+                                  keyboardType: TextInputType.visiblePassword,
+                                  obscureText: _obscureText,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    prefixIcon: Icon(Icons.lock,
+                                        color: Color(0xFF164AE9)),
+                                    labelStyle: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureText
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
+                                        color: Colors.grey,
                                       ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Registered Movie: $registeredMovie',
-                                        style: TextStyle(
-                                            fontSize: screenWidth * 0.04,
-                                            color: Colors.grey[700]),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscureText = !_obscureText;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      // TODO: Implement forgot password
+                                    },
+                                    child: Text(
+                                      'Forgot Password?',
+                                      style: TextStyle(
+                                        color: Color(0xFF164AE9),
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                      SizedBox(height: screenHeight * 0.04),
-                                      TextFormField(
-                                        controller: loginmobilenumber,
-                                        keyboardType: TextInputType.phone,
-                                        decoration: InputDecoration(
-                                          labelText: 'Mobile Number',
-                                          prefixIcon: Icon(Icons.phone,
-                                              color: Color(0xFF164AE9)),
-                                          labelStyle: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey,
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(height: screenHeight * 0.025),
-                                      TextFormField(
-                                        controller: loginpassword,
-                                        keyboardType:
-                                            TextInputType.visiblePassword,
-                                        obscureText: _obscureText,
-                                        decoration: InputDecoration(
-                                          labelText: 'Password',
-                                          prefixIcon: Icon(Icons.lock,
-                                              color: Color(0xFF164AE9)),
-                                          labelStyle: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey,
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _obscureText
-                                                  ? Icons.visibility_off
-                                                  : Icons.visibility,
-                                              color: Colors.grey,
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _obscureText = !_obscureText;
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () {
-                                            // TODO: Implement forgot password
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: screenHeight * 0.03),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: screenHeight * 0.07,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () {
+                                            loginr();
                                           },
-                                          child: Text(
-                                            'Forgot Password?',
-                                            style: TextStyle(
-                                              color: Color(0xFF164AE9),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 4,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(18),
                                       ),
-                                      SizedBox(height: screenHeight * 0.03),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        height: screenHeight * 0.07,
-                                        child: ElevatedButton(
-                                          onPressed: _isLoading
-                                              ? null
-                                              : () {
-                                                  loginr();
-                                                },
-                                          style: ElevatedButton.styleFrom(
-                                            elevation: 4,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(18),
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                            backgroundColor: null,
-                                          ).copyWith(
-                                            backgroundColor:
-                                                MaterialStateProperty
-                                                    .resolveWith<Color?>(
-                                                        (states) {
-                                              if (states.contains(
-                                                  MaterialState.disabled)) {
-                                                return Colors.grey[400];
-                                              }
-                                              return null;
-                                            }),
-                                          ),
-                                          child: Ink(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  Color(0xFF164AE9),
-                                                  Color(0xFF4F8CFF),
+                                      padding: EdgeInsets.zero,
+                                      backgroundColor: null,
+                                    ).copyWith(
+                                      backgroundColor: MaterialStateProperty
+                                          .resolveWith<Color?>((states) {
+                                        if (states
+                                            .contains(MaterialState.disabled)) {
+                                          return Colors.grey[400];
+                                        }
+                                        return null;
+                                      }),
+                                    ),
+                                    child: Ink(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Color(0xFF164AE9),
+                                            Color(0xFF4F8CFF),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        child: _isLoading
+                                            ? CircularProgressIndicator(
+                                                color: Colors.white,
+                                              )
+                                            : Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Login',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize:
+                                                          screenWidth * 0.045,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Icon(Icons.login,
+                                                      color: Colors.white),
                                                 ],
                                               ),
-                                              borderRadius:
-                                                  BorderRadius.circular(18),
-                                            ),
-                                            child: Container(
-                                              alignment: Alignment.center,
-                                              child: _isLoading
-                                                  ? CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                    )
-                                                  : Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Text(
-                                                          'Login',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize:
-                                                                screenWidth *
-                                                                    0.045,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                        SizedBox(width: 8),
-                                                        Icon(Icons.login,
-                                                            color:
-                                                                Colors.white),
-                                                      ],
-                                                    ),
-                                            ),
-                                          ),
-                                        ),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0, top: 8.0),

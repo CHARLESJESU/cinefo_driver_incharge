@@ -1,30 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
-import 'package:production/Screens/callsheet/offlinecreatecallsheet.dart';
-import 'package:production/Screens/callsheet/createcallsheet.dart';
 import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
-import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
-import 'package:production/Screens/Home/importantfunc.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:production/Screens/Login/loginscreen.dart';
-import 'dart:io';
 
-class MyHomescreen extends StatefulWidget {
-  const MyHomescreen({super.key});
+class DriverMyhomescreen extends StatefulWidget {
+  const DriverMyhomescreen({super.key});
 
   @override
-  State<MyHomescreen> createState() => _MyHomescreenState();
+  State<DriverMyhomescreen> createState() => _DriverMyHomescreenState();
 }
 
-class _MyHomescreenState extends State<MyHomescreen> {
+class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
   String? _deviceId;
   String? _managerName;
   String? _mobileNumber;
-  String? _registeredMovie;
-  String? _productionHouse;
   String? _profileImage;
   List<Map<String, dynamic>> _callsheetList = [];
 
@@ -50,10 +42,6 @@ class _MyHomescreenState extends State<MyHomescreen> {
           _deviceId = loginMaps.first['device_id']?.toString() ?? 'N/A';
           _managerName = loginMaps.first['manager_name']?.toString() ?? '';
           _mobileNumber = loginMaps.first['mobile_number']?.toString() ?? '';
-          _registeredMovie =
-              loginMaps.first['registered_movie']?.toString() ?? '';
-          _productionHouse =
-              loginMaps.first['production_house']?.toString() ?? '';
           _profileImage = loginMaps.first['profile_image']?.toString();
         });
       }
@@ -105,8 +93,6 @@ class _MyHomescreenState extends State<MyHomescreen> {
         _deviceId = 'N/A';
         _managerName = '';
         _mobileNumber = '';
-        _registeredMovie = '';
-        _productionHouse = '';
         _profileImage = null;
         _callsheetList = [];
       });
@@ -531,83 +517,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 20), // Space between containers
-                    // Avengers: Endgame container (different design)
-                    //container 2
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 30),
-                      child: Container(
-                        height: 120,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF4A6FA5),
-                              Color(0xFF2E4B73),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _registeredMovie ?? '',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      _productionHouse ?? '',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20), // Space after container 2
+                    SizedBox(height: 20), // Space after profile container
                   ],
                 ),
               ),
@@ -615,95 +525,6 @@ class _MyHomescreenState extends State<MyHomescreen> {
           ),
         ),
       ],
-    );
-  }
-
-  // Helper method to get initial 3 list items
-
-  // Helper method to build individual list item
-  Widget _buildListItem(String code, String timing, String date, String status,
-      {Map<String, dynamic>? callsheetData}) {
-    return GestureDetector(
-      onTap: () async {
-        if (callsheetData != null) {
-          if (status == 'open') {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    OfflineCallsheetDetailScreen(callsheet: callsheetData),
-              ),
-            );
-            if (result == true) {
-              _fetchLoginAndCallsheetData();
-            }
-          }
-        }
-      },
-      child: Container(
-        margin: EdgeInsets.only(bottom: 10),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Left side - Code and timing
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    code,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2B5682),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    timing,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Right side - Date
-            Expanded(
-              flex: 1,
-              child: Text(
-                date,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF355E8C),
-                ),
-                textAlign: TextAlign.right,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

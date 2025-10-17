@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
+import 'package:production/Screens/Home/driverhomescreen.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
-import 'package:production/Screens/Trip/createtrip.dart';
 import 'package:production/variables.dart';
 
-class Routescreen extends StatefulWidget {
+class Routescreenfordriver extends StatefulWidget {
   final int initialIndex;
 
-  const Routescreen({super.key, this.initialIndex = 0}); // Default to Home tab
+  const Routescreenfordriver(
+      {super.key, this.initialIndex = 0}); // Default to Home tab
 
   @override
-  State<Routescreen> createState() => _RoutescreenState();
+  State<Routescreenfordriver> createState() => _RoutescreenfordriverState();
 }
 
-class _RoutescreenState extends State<Routescreen> {
+class _RoutescreenfordriverState extends State<Routescreenfordriver> {
   int _currentIndex = 0;
 
   @override
@@ -54,10 +55,10 @@ class _RoutescreenState extends State<Routescreen> {
                           icon: Icon(Icons.home),
                           label: 'Home',
                         ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.add_circle_outline),
-                          label: 'Callsheet',
-                        ),
+                        // BottomNavigationBarItem(
+                        //   icon: Icon(Icons.add_circle_outline),
+                        //   label: 'Callsheet',
+                        // ),
                         BottomNavigationBarItem(
                           icon: Icon(Icons.calendar_month),
                           label: 'Reports',
@@ -88,18 +89,18 @@ class _RoutescreenState extends State<Routescreen> {
     switch (index) {
       case 0:
         // return const MovieListScreen();
-        return const MyHomescreen();
-      case 1:
-        if (productionTypeId == 3) {
-          return (selectedProjectId != null && selectedProjectId != "0")
-              ? Createtrip()
-              : const MovieListScreen();
-        } else {
-          // For productionTypeId == 2 or any other case
-          return Createtrip();
-        }
+        return const DriverMyhomescreen();
+      // case 1:
+      //   if (productionTypeId == 3) {
+      //     return (selectedProjectId != null && selectedProjectId != "0")
+      //         ? CallSheet()
+      //         : const MovieListScreen();
+      //   } else {
+      //     // For productionTypeId == 2 or any other case
+      //     return CallSheet();
+      //   }
 
-      case 2:
+      case 1:
         return Reports(
           projectId: projectid.toString(),
           callsheetid: callsheetid.toString(),

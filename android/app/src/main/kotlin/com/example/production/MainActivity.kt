@@ -1,4 +1,4 @@
-package com.vlabs.cinefo_production
+package com.vlabs.cinefo_driver
 
 import android.app.PendingIntent
 import android.content.Intent
