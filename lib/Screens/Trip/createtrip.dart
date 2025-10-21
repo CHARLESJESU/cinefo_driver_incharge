@@ -5,6 +5,10 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/Screens/Home/colorcode.dart';
 import 'package:production/variables.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class Createtrip extends StatefulWidget {
   const Createtrip({super.key});
@@ -23,10 +27,15 @@ class _CreatetripState extends State<Createtrip> {
   String tripType = 'Pick Up';
   List<String> driverList = []; // Will be populated from server
   List<String> filteredDriverList = []; // For search functionality
+  List<Map<String, dynamic>> driverDataList = []; // Store complete driver data
   String? selectedDriver;
-  List<String> personList = ['Person X', 'Person Y', 'Person Z'];
   String? selectedPerson;
+  DateTime? selectedPickupDate; // Add pickup date
   TimeOfDay? selectedTime;
+  // Location variables
+  double? selectedLatitude;
+  double? selectedLongitude;
+  String? locationUrl;
 
   // Controllers for new fields
   final TextEditingController contactPersonNameController =
@@ -150,6 +159,7 @@ class _CreatetripState extends State<Createtrip> {
           // Process the response and update driverList with server data
           if (responseBody != null) {
             List<String> newDriverList = [];
+            List<Map<String, dynamic>> newDriverDataList = [];
 
             // Check if responseBody is a List (array of drivers)
             if (responseBody is List) {
@@ -163,6 +173,15 @@ class _CreatetripState extends State<Createtrip> {
                   String code = driver['code']?.toString() ?? 'N/A';
                   String mobilenumber =
                       driver['mobileNumber']?.toString() ?? 'N/A';
+
+                  // Store complete driver data
+                  newDriverDataList.add({
+                    'fname': fname,
+                    'code': code,
+                    'mobileNumber': mobilenumber,
+                    'vmid': driver['vmid'] ?? 0,
+                    'vcid': driver['vcid'] ?? 0,
+                  });
 
                   // Format: fname-code-mobilenumber
                   String driverDisplay = '$fname-$code-$mobilenumber';
@@ -203,6 +222,15 @@ class _CreatetripState extends State<Createtrip> {
                     String mobilenumber =
                         driver['mobileNumber']?.toString() ?? 'N/A';
 
+                    // Store complete driver data
+                    newDriverDataList.add({
+                      'fname': fname,
+                      'code': code,
+                      'mobileNumber': mobilenumber,
+                      'vmid': driver['vmid'] ?? 0,
+                      'vcid': driver['vcid'] ?? 0,
+                    });
+
                     // Format: fname-code-mobilenumber
                     String driverDisplay = '$fname-$code-$mobilenumber';
                     newDriverList.add(driverDisplay);
@@ -218,11 +246,13 @@ class _CreatetripState extends State<Createtrip> {
             setState(() {
               if (newDriverList.isNotEmpty) {
                 driverList = newDriverList;
+                driverDataList = newDriverDataList;
                 filteredDriverList =
                     List.from(newDriverList); // Initialize filtered list
                 print('✅ Updated UI with ${newDriverList.length} drivers');
               } else {
                 driverList = ['No drivers available'];
+                driverDataList = [];
                 filteredDriverList = ['No drivers available'];
                 print('⚠️ No valid drivers found, showing placeholder');
               }
@@ -235,6 +265,7 @@ class _CreatetripState extends State<Createtrip> {
           print('🔍 Raw response body: ${loadmemberResponse.body}');
           setState(() {
             driverList = ['Error loading drivers'];
+            driverDataList = [];
             filteredDriverList = ['Error loading drivers'];
           });
         }
@@ -243,6 +274,7 @@ class _CreatetripState extends State<Createtrip> {
         print('❌ Response body: ${loadmemberResponse.body}');
         setState(() {
           driverList = ['Failed to load drivers'];
+          driverDataList = [];
           filteredDriverList = ['Failed to load drivers'];
         });
       }
@@ -250,6 +282,7 @@ class _CreatetripState extends State<Createtrip> {
       print('❌ Error loading members: $e');
       setState(() {
         driverList = ['Network error'];
+        driverDataList = [];
         filteredDriverList = ['Network error'];
       });
     } finally {
@@ -506,6 +539,11 @@ class _CreatetripState extends State<Createtrip> {
       missingFields.add('Pick Up Time');
     }
 
+    // Check pickup date for Pick Up trips
+    if (tripType == 'Pick Up' && selectedPickupDate == null) {
+      missingFields.add('Pick Up Date');
+    }
+
     if (contactPersonNameController.text.trim().isEmpty) {
       missingFields.add('Contact Person Name');
     }
@@ -574,69 +612,15 @@ class _CreatetripState extends State<Createtrip> {
   }
 
   // Save trip data
-  void _saveTrip() {
-    // Show success message
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 24),
-              SizedBox(width: 8),
-              Text('Trip Created', style: TextStyle(fontSize: 18)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Trip details have been saved successfully!'),
-              SizedBox(height: 12),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSummaryRow('Trip Type:', tripType),
-                    _buildSummaryRow('Driver:', selectedDriver ?? ''),
-                    if (tripType == 'Pick Up' && selectedTime != null)
-                      _buildSummaryRow('Time:', selectedTime!.format(context)),
-                    _buildSummaryRow(
-                        'Contact Person:', contactPersonNameController.text),
-                    _buildSummaryRow(
-                        'Contact Number:', contactPersonNoController.text),
-                    if (alternateContactNoController.text.trim().isNotEmpty)
-                      _buildSummaryRow('Alternate Contact:',
-                          alternateContactNoController.text),
-                    _buildSummaryRow('Location:', locationController.text),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // Optionally navigate back or reset form
-                _resetForm();
-              },
-              child: Text('OK', style: TextStyle(color: Colors.green)),
-            ),
-          ],
-        );
-      },
-    );
-
+  void _saveTrip() async {
     // Print trip data for debugging
     print('🎉 TRIP SAVED SUCCESSFULLY');
     print('📋 Trip Type: $tripType');
     print('🚗 Driver: $selectedDriver');
+    if (tripType == 'Pick Up' && selectedPickupDate != null) {
+      print(
+          '📅 Pick Up Date: ${selectedPickupDate!.day}/${selectedPickupDate!.month}/${selectedPickupDate!.year}');
+    }
     if (tripType == 'Pick Up' && selectedTime != null) {
       print('⏰ Pick Up Time: ${selectedTime!.format(context)}');
     }
@@ -646,35 +630,125 @@ class _CreatetripState extends State<Createtrip> {
       print('📞 Alternate Contact: ${alternateContactNoController.text}');
     }
     print('📍 Location: ${locationController.text}');
-  }
+    if (locationUrl != null) {
+      print('🔗 Location URL: $locationUrl');
+    }
 
-  // Helper method to build summary rows
-  Widget _buildSummaryRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
+    // API call to create trip
+    try {
+      // Parse driver info (format: Name-Code-Mobile)
+      String? driverName;
+      String? driverCode;
+      String? driverMobile;
+      int drivervmid = 0;
+      int drivervcid = 0;
+
+      if (selectedDriver != null && selectedDriver!.contains('-')) {
+        final parts = selectedDriver!.split('-');
+        driverName = parts.isNotEmpty ? parts[0] : '';
+        driverCode = parts.length > 1 ? parts[1] : '';
+        driverMobile = parts.length > 2 ? parts[2] : '';
+
+        // Find the corresponding driver data to get vmid and vcid
+        for (var driverData in driverDataList) {
+          if (driverData['fname'] == driverName &&
+              driverData['code'] == driverCode &&
+              driverData['mobileNumber'] == driverMobile) {
+            drivervmid = driverData['vmid'] ?? 0;
+            drivervcid = driverData['vcid'] ?? 0;
+            print('🔍 Found driver IDs: vmid=$drivervmid, vcid=$drivervcid');
+            break;
+          }
+        }
+      }
+      final payload = {
+        "vpid": loginData?["vpid"] ?? 0,
+        "tripttypeid": tripType == "Pick Up" ? 1 : 2,
+        "tripType": tripType,
+        "inchargevmid": loginData?["vmid"] ?? 0,
+        "inchargeName": loginData?["manager_name"] ?? '',
+        "vpoid": loginData?["vpoid"] ?? 0,
+        "vbpid": loginData?["vbpid"] ?? 0,
+        "unitid": loginData?["unitid"] ?? 0,
+        "subunitid": loginData?["subunitid"] ?? 0,
+        "projectid": loginData?["project_id"] ?? 0,
+        "projectname": loginData?["registered_movie"] ?? '',
+        "inchargevcid": loginData?["vcid"] ?? 0,
+        "drivervmid": drivervmid,
+        "drivercode": driverCode ?? '',
+        "drivervcid": drivervcid,
+        "driverName": driverName ?? '',
+        "driverMobilenumber": driverMobile ?? '',
+        "latitude": selectedLatitude?.toString() ?? '',
+        "longtitude": selectedLongitude?.toString() ?? '',
+        "location": locationController.text,
+        "tripdate": selectedPickupDate != null
+            ? "${selectedPickupDate!.year}-${selectedPickupDate!.month.toString().padLeft(2, '0')}-${selectedPickupDate!.day.toString().padLeft(2, '0')}"
+            : '',
+        "triptime": selectedTime != null ? selectedTime!.format(context) : '',
+        "contactpersonname": contactPersonNameController.text,
+        "contactpersonmobile": contactPersonNoController.text,
+        "contactpersonalternatemobile": alternateContactNoController.text,
+        "locationurl": locationUrl ?? '',
+      };
+      final createtripResponse = await http.post(
+        processSessionRequest,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'VMETID':
+              'k+UnxgpyJFtbhHBcNgiwMctkSDb0/LZImpdqp2QlixSbONNAMlSbS41JItIprv1EpDBixc5WWktQx/FCwvkVHEHmIzviCUWcyuE8EhZaCGPH6CbKH2EPiny8/q8ZvlF7jlJNrbHwx8o4SqqxEwNlErUhBPyFXN8BgtKbCkGI7XeuYy8Twet/t+X4kdzjestXB9yks2Y5TzJu8P3ZPY/jYvzF+QbgAQQwzCZ7RtOWy93EV9p5pZFOH5NAzHdbXU8mrV6rxFZ5wfOPynlV6Q63pAWN+0faVYtK/4kEEW4kzmkpewVsRTlUYeTLjsiIwZdSXGdGaNmK87qa480tqz29Uw==',
+          'VSID': loginData!['vsid']?.toString() ?? '',
+        },
+        body: jsonEncode(payload),
+      );
+
+      print(
+          '🛰️ CreateTrip API Response Status: ${createtripResponse.statusCode}');
+      print('🛰️ CreateTrip API Payload: $payload');
+      print('🛰️ CreateTrip API Response Body: ${createtripResponse.body}');
+
+      if (createtripResponse.statusCode == 200) {
+        print('✅ Trip created successfully on server!');
+
+        // Show success SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Trip created successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 12),
-            ),
+        );
+
+        // Reset form after successful creation
+        _resetForm();
+      } else {
+        print(
+            '⚠️ Trip creation failed with status: ${createtripResponse.statusCode}');
+
+        // Show error SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to create trip. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      print('❌ Error calling CreateTrip API: $e');
+
+      // Show error SnackBar for exceptions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Network error. Please check your connection.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // Reset form after successful save
@@ -683,6 +757,10 @@ class _CreatetripState extends State<Createtrip> {
       tripType = 'Pick Up';
       selectedDriver = null;
       selectedTime = null;
+      selectedPickupDate = null;
+      selectedLatitude = null;
+      selectedLongitude = null;
+      locationUrl = null;
       contactPersonNameController.clear();
       contactPersonNoController.clear();
       alternateContactNoController.clear();
@@ -691,6 +769,193 @@ class _CreatetripState extends State<Createtrip> {
       filteredDriverList = List.from(driverList);
     });
     print('🔄 Form reset successfully');
+  }
+
+  // Select pickup date
+  Future<void> _selectPickupDate() async {
+    final DateTime today = DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedPickupDate ?? today,
+      firstDate: DateTime(today.year, today.month, today.day),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null && picked != selectedPickupDate) {
+      setState(() {
+        selectedPickupDate = picked;
+      });
+    }
+  }
+
+  // Pick location using map
+  Future<void> _pickLocation() async {
+    setState(() {
+      locationController.text = "Fetching location...";
+    });
+
+    Position? position;
+
+    try {
+      // Try to get last known position first
+      position = await Geolocator.getLastKnownPosition();
+    } catch (e) {
+      print('⚠️ Could not get last known position: $e');
+      position = null;
+    }
+
+    if (position == null) {
+      try {
+        position = await _determinePosition();
+      } catch (e) {
+        print('⚠️ Could not get current position: $e');
+        // Use default location (you can change these coordinates to your preferred default)
+        position = Position(
+          latitude: 28.6139, // Default to Delhi, India (you can change this)
+          longitude: 77.2090,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+
+        setState(() {
+          locationController.text = "Enter Location";
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Location permission denied. Please select location manually on the map.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+
+    LatLng initialPosition = LatLng(position.latitude, position.longitude);
+
+    LatLng? pickedLocation = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OpenStreetMapScreen(initialPosition),
+      ),
+    );
+
+    if (pickedLocation != null) {
+      setState(() {
+        locationController.text = "Fetching address...";
+      });
+
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+            pickedLocation.latitude, pickedLocation.longitude);
+
+        if (placemarks.isNotEmpty) {
+          String fullAddress = [
+            placemarks.first.street,
+            placemarks.first.subLocality,
+            placemarks.first.locality,
+            placemarks.first.administrativeArea,
+            placemarks.first.country
+          ].where((e) => e != null && e.isNotEmpty).join(", ");
+
+          setState(() {
+            selectedLatitude = pickedLocation.latitude;
+            selectedLongitude = pickedLocation.longitude;
+            locationUrl =
+                "https://maps.google.com/?q=${pickedLocation.latitude},${pickedLocation.longitude}";
+            print('🔗 Location URL generated successfully: $locationUrl');
+            locationController.text = fullAddress.isNotEmpty
+                ? fullAddress
+                : "Lat: ${pickedLocation.latitude.toStringAsFixed(6)}, Lng: ${pickedLocation.longitude.toStringAsFixed(6)}";
+          });
+        } else {
+          setState(() {
+            selectedLatitude = pickedLocation.latitude;
+            selectedLongitude = pickedLocation.longitude;
+            locationUrl =
+                "https://maps.google.com/?q=${pickedLocation.latitude},${pickedLocation.longitude}";
+            print('🔗 Location URL generated successfully: $locationUrl');
+            locationController.text =
+                "Lat: ${pickedLocation.latitude.toStringAsFixed(6)}, Lng: ${pickedLocation.longitude.toStringAsFixed(6)}";
+          });
+        }
+      } catch (e) {
+        print('⚠️ Error getting address: $e');
+        setState(() {
+          selectedLatitude = pickedLocation.latitude;
+          selectedLongitude = pickedLocation.longitude;
+          locationUrl =
+              "https://maps.google.com/?q=${pickedLocation.latitude},${pickedLocation.longitude}";
+          print('🔗 Location URL generated successfully: $locationUrl');
+          locationController.text =
+              "Lat: ${pickedLocation.latitude.toStringAsFixed(6)}, Lng: ${pickedLocation.longitude.toStringAsFixed(6)}";
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Could not get address for selected location. Coordinates saved.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } else {
+      // User cancelled location selection
+      setState(() {
+        locationController.text = "";
+      });
+    }
+  }
+
+  // Determine current position
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception(
+          'Location services are disabled. Please enable location services in your device settings.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception(
+            'Location permissions are denied. Please grant location permission to use this feature.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'Location permissions are permanently denied. Please go to app settings and enable location permission.');
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      );
+    } catch (e) {
+      // If getting current position fails, try with lower accuracy
+      try {
+        return await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
+        );
+      } catch (e) {
+        throw Exception(
+            'Unable to get current location. Please try again or select location manually on the map.');
+      }
+    }
   }
 
   Future<void> _selectTime(BuildContext context) async {
@@ -888,6 +1153,39 @@ class _CreatetripState extends State<Createtrip> {
                                   ),
                                   const SizedBox(height: 16),
                                   if (tripType == 'Pick Up') ...[
+                                    const Text('Pick Up Date',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 8),
+                                    GestureDetector(
+                                      onTap: _selectPickupDate,
+                                      child: AbsorbPointer(
+                                        child: TextFormField(
+                                          decoration: InputDecoration(
+                                            filled: true,
+                                            fillColor: Colors.white,
+                                            border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8),
+                                            hintText: 'Select Date',
+                                            suffixIcon:
+                                                Icon(Icons.calendar_today),
+                                          ),
+                                          controller: TextEditingController(
+                                            text: selectedPickupDate == null
+                                                ? ''
+                                                : "${selectedPickupDate!.day}/${selectedPickupDate!.month}/${selectedPickupDate!.year}",
+                                          ),
+                                          readOnly: true,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
                                     const Text('Pick Up Time',
                                         style: TextStyle(
                                             color: Colors.white,
@@ -1003,6 +1301,11 @@ class _CreatetripState extends State<Createtrip> {
                                           const EdgeInsets.symmetric(
                                               horizontal: 12, vertical: 8),
                                       hintText: 'Enter Location',
+                                      suffixIcon: IconButton(
+                                        icon: const Icon(Icons.location_on),
+                                        onPressed: _pickLocation,
+                                        tooltip: 'Pick location from map',
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -1062,6 +1365,132 @@ class _CreatetripState extends State<Createtrip> {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class OpenStreetMapScreen extends StatefulWidget {
+  final LatLng initialPosition;
+  OpenStreetMapScreen(this.initialPosition, {Key? key}) : super(key: key);
+
+  @override
+  _OpenStreetMapScreenState createState() => _OpenStreetMapScreenState();
+}
+
+class _OpenStreetMapScreenState extends State<OpenStreetMapScreen> {
+  late LatLng selectedLocation;
+  final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    selectedLocation = widget.initialPosition;
+  }
+
+  // 🔍 Function to Search for Location
+  Future<void> _searchLocation() async {
+    String query = _searchController.text;
+    if (query.isEmpty) return;
+
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      if (locations.isNotEmpty) {
+        setState(() {
+          selectedLocation =
+              LatLng(locations.first.latitude, locations.first.longitude);
+          _mapController.move(selectedLocation, 15.0);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Location not found!")),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Location"),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 🔍 Search Bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: "Search location...",
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: _searchLocation,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 🗺️ Map (Expanded for responsiveness)
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: selectedLocation,
+                    initialZoom: 13.0,
+                    onTap: (_, latLng) {
+                      setState(() {
+                        selectedLocation = latLng;
+                      });
+                    },
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: selectedLocation,
+                          width: 40.0,
+                          height: 40.0,
+                          child: const Icon(Icons.location_on,
+                              size: 40, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // ✅ Floating Button for Confirm
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.pop(context, selectedLocation),
+        icon: const Icon(Icons.check),
+        label: const Text("Confirm"),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:production/Screens/Home/Homescreen.dart';
 import 'package:production/Screens/Home/MyHomescreen.dart';
 import 'package:production/Screens/callsheet/callsheet.dart';
 import 'package:production/Screens/report/Reports.dart';
+import 'package:production/Screens/report/inchargereport.dart';
 import 'package:production/Screens/trip/createtrip.dart';
 import 'package:production/variables.dart';
 
@@ -114,10 +115,7 @@ class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
         }
 
       case 3:
-        return Reports(
-          projectId: projectid.toString(),
-          callsheetid: callsheetid.toString(),
-        );
+        return Inchargereport();
       // case 3:
       //   return TripScreen();
       default:

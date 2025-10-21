@@ -1,22 +1,20 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
-import 'package:intl/intl.dart';
+
 import 'package:production/sessionexpired.dart';
 import 'package:production/variables.dart';
 
-class Reports extends StatefulWidget {
-  final String projectId;
-  final String callsheetid;
+class Inchargereport extends StatefulWidget {
+  const Inchargereport({super.key});
 
-  const Reports(
-      {super.key, required this.projectId, required this.callsheetid});
   @override
-  State<Reports> createState() => _ReportsState();
+  State<Inchargereport> createState() => _InchargereportState();
 }
 
-class _ReportsState extends State<Reports> {
+class _InchargereportState extends State<Inchargereport> {
   List<Map<String, dynamic>> trips = [];
   bool isLoading = true; // State for loading indicator
 
@@ -58,7 +56,6 @@ class _ReportsState extends State<Reports> {
         body: jsonEncode({"vmid": vmid, "statusid": 0}),
       );
       print('VMID: $vmid');
-      print('Project ID: $projectId');
 
       // Check if widget is still mounted before processing response
       if (!mounted) return;
@@ -135,7 +132,7 @@ class _ReportsState extends State<Reports> {
           appBar: AppBar(
             automaticallyImplyLeading: false,
             title: const Text(
-              "Trip Reports",
+              "Incharge Trip Reports",
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
@@ -224,11 +221,11 @@ class _ReportsState extends State<Reports> {
                           ),
                           ...trips.map((trip) => tripContainerBox(
                                 context,
-                                trip['tripdate'] ?? "N/A",
-                                trip['tripType'] ?? "N/A",
-                                trip['location'] ?? "N/A",
-                                trip['driverName'] ?? "N/A",
                                 trip['tripid']?.toString() ?? "N/A",
+                                trip['driverName'] ?? "N/A",
+                                trip['tripdate']?.toString() ?? "N/A",
+                                trip['location'] ?? "N/A",
+                                trip['tripType'] ?? "N/A",
                               )),
                         ],
                       ],
@@ -244,13 +241,22 @@ class _ReportsState extends State<Reports> {
     );
   }
 
-  Widget tripContainerBox(BuildContext context, String tripDate,
-      String tripType, String location, String driverName, String tripId) {
+  Widget tripContainerBox(BuildContext context, String tripId,
+      String driverName, String tripDate, String location, String tripType) {
     String formattedDate = "Invalid Date";
-    if (tripDate.isNotEmpty) {
+    if (tripDate.isNotEmpty && tripDate != "N/A") {
       try {
-        DateTime parsedDate = DateTime.parse(tripDate);
-        formattedDate = DateFormat("dd/MM/yyyy").format(parsedDate);
+        // Handle date format from response (e.g., 20251017)
+        if (tripDate.length == 8) {
+          String year = tripDate.substring(0, 4);
+          String month = tripDate.substring(4, 6);
+          String day = tripDate.substring(6, 8);
+          DateTime parsedDate = DateTime.parse('$year-$month-$day');
+          formattedDate = DateFormat("dd/MM/yyyy").format(parsedDate);
+        } else {
+          DateTime parsedDate = DateTime.parse(tripDate);
+          formattedDate = DateFormat("dd/MM/yyyy").format(parsedDate);
+        }
       } catch (e) {
         formattedDate = tripDate; // Use original if parsing fails
       }
@@ -408,6 +414,7 @@ class _ReportsState extends State<Reports> {
 
   Color _getTripTypeColor(String tripType) {
     switch (tripType.toLowerCase()) {
+      case 'pickup':
       case 'pick up':
         return Colors.green;
       case 'drop':

@@ -36,6 +36,7 @@ class _LoginscreenState extends State<Loginscreen> {
   // Helper method to create login_data table
   Future<void> _createLoginTable(Database db) async {
     try {
+      // await db.execute('DROP TABLE IF EXISTS login_data');
       await db.execute('''
         CREATE TABLE IF NOT EXISTS login_data (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +66,7 @@ class _LoginscreenState extends State<Loginscreen> {
           vpidpo INTEGER,
           vpidbp INTEGER,
           unitid INTEGER,
+          subunitid INTEGER,
           platformlogo TEXT,
           driver BOOLEAN DEFAULT 0
         )
@@ -289,6 +291,7 @@ class _LoginscreenState extends State<Loginscreen> {
           'vpidpo': loginresponsebody?['vpidpo'] ?? 0,
           'vpidbp': loginresponsebody?['vpidbp'] ?? 0,
           'unitid': loginresponsebody?['unitid'] ?? 0,
+          'subunitid': loginresponsebody?['subunitid'] ?? 0,
           'platformlogo': loginresponsebody?['platformlogo']?.toString() ?? '',
           'driver': 0, // Default value, will be updated based on navigation
         };

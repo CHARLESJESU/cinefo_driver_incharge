@@ -725,6 +725,10 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     item['vpidbp']?.toString()),
                                                 _buildDetailRow('Unit ID',
                                                     item['unitid']?.toString()),
+                                                _buildDetailRow(
+                                                    'Sub Unit ID',
+                                                    item['subunitid']
+                                                        ?.toString()),
                                                 _buildDetailRow('Platform Logo',
                                                     item['platformlogo']),
                                               ]
