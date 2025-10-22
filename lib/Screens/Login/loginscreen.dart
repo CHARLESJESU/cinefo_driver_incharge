@@ -787,7 +787,7 @@ class _LoginscreenState extends State<Loginscreen> {
                       "vmId": loginresponsebody?['responseData']?['vmid'] ?? 0,
                     }),
                   );
-
+                  vsid = loginresponsebody?['vsid']?.toString() ?? "";
                   print(
                       '🚗 Driver HTTP Response Status: ${driverResponse.statusCode}');
                   print('🚗 Driver HTTP Response Body: ${driverResponse.body}');
