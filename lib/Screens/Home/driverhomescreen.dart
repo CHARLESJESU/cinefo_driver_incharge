@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
+import 'package:production/Screens/Home/nfcUIDreader.dart';
+import 'package:production/Screens/Home/otpscreen.dart';
 import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
@@ -749,6 +751,70 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                     onTap: () {
                       Navigator.pop(context); // Close drawer first
                       _showLogoutDialog(context);
+                    },
+                  ),
+                  Divider(
+                    color: Colors.white.withOpacity(0.3),
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                  ),
+
+                  // Logout
+                  ListTile(
+                    leading: Icon(
+                      Icons.output,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    title: Text(
+                      'Otpscreen',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Close drawer first
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Otpscreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(
+                    color: Colors.white.withOpacity(0.3),
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                  ),
+
+                  // Logout
+                  ListTile(
+                    leading: Icon(
+                      Icons.output,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    title: Text(
+                      'NFC CARD UID',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Close drawer first
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NfcHomePage(),
+                        ),
+                      );
                     },
                   ),
                   Divider(

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
+import 'package:production/Screens/Attendance/intime.dart';
+import 'package:production/Screens/Attendance/nfcnotifier.dart';
+import 'package:production/Screens/Home/nfcUIDreader.dart';
 import 'package:production/Screens/callsheet/offlinecreatecallsheet.dart';
 import 'package:production/Screens/callsheet/createcallsheet.dart';
 import 'package:production/Tesing/Sqlitelist.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
@@ -387,6 +391,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       ),
                     ),
                   ),
+
                   Divider(
                     color: Colors.white.withOpacity(0.3),
                     thickness: 1,
@@ -413,6 +418,36 @@ class _MyHomescreenState extends State<MyHomescreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => Sqlitelist(),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(
+                    color: Colors.white.withOpacity(0.3),
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.calendar_month,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    title: Text(
+                      'NFC',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Close drawer first
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NfcHomePage(),
                         ),
                       );
                     },

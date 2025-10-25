@@ -42,7 +42,8 @@ dependencies:
   latlong2: ^0.9.1
   intl: ^0.18.1
   encrypt:
-  nfc_manager:
+  nfc_manager: ^4.1.1
+  nfc_manager_ndef: ^1.1.0
   provider:
   permission_handler: ^11.0.0
   shared_preferences: ^2.2.2

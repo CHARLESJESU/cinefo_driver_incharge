@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:shared_preferences/shared_preferences.dart';
+// shared_preferences import removed (not used here)
 import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:production/Screens/Attendance/encryption.dart';
@@ -34,8 +34,16 @@ class NFCNotifier extends ChangeNotifier {
   String? _vcid;
   String? get vcid => _vcid;
 
+  /// Start an NFC session and perform the requested [nfcOperation].
+  ///
+  /// Optional [onTag] callback is invoked with the discovered [NfcTag]
+  /// before the notifier parses/decrypts it. This allows callers to extract
+  /// raw UID bytes (or other metadata) while still reusing the notifier's
+  /// parsing logic.
   Future<void> startNFCOperation(
-      {required NFCOperation nfcOperation, String dataType = ""}) async {
+      {required NFCOperation nfcOperation,
+      String dataType = "",
+      void Function(NfcTag tag)? onTag}) async {
     try {
       _isProcessing = true;
       _hasStarted = true;
@@ -46,29 +54,36 @@ class NFCNotifier extends ChangeNotifier {
           _message = "Scanning";
         }
         safeNotifyListeners();
-        NfcManager.instance.startSession(onDiscovered: (NfcTag nfcTag) async {
-          try {
-            if (nfcOperation == NFCOperation.read) {
-              await _readFromTag(tag: nfcTag);
-            }
-          } catch (e) {
-            print('Error in NFC discovery: $e');
-            _message = "Error reading NFC: ${e.toString()}";
-            safeNotifyListeners();
-          } finally {
-            _hasStarted = false;
-            _isProcessing = false;
-            safeNotifyListeners();
-            // Stop session immediately after reading
-            await NfcManager.instance.stopSession();
-          }
-        }, onError: (e) async {
-          _hasStarted = false;
-          _isProcessing = false;
-          _message = e.toString();
-          safeNotifyListeners();
-          await NfcManager.instance.stopSession();
-        });
+        NfcManager.instance.startSession(
+            pollingOptions: {NfcPollingOption.iso14443},
+            onDiscovered: (NfcTag nfcTag) async {
+              try {
+                // Give caller a chance to inspect the raw tag (UID, etc.)
+                if (onTag != null) {
+                  try {
+                    onTag(nfcTag);
+                  } catch (e) {
+                    // Swallow errors in the caller-provided callback to
+                    // avoid breaking the notifier's flow.
+                    print('Error in onTag callback: $e');
+                  }
+                }
+
+                if (nfcOperation == NFCOperation.read) {
+                  await _readFromTag(tag: nfcTag);
+                }
+              } catch (e) {
+                print('Error in NFC discovery: $e');
+                _message = "Error reading NFC: ${e.toString()}";
+                safeNotifyListeners();
+              } finally {
+                _hasStarted = false;
+                _isProcessing = false;
+                safeNotifyListeners();
+                // Stop session immediately after reading
+                await NfcManager.instance.stopSession();
+              }
+            });
       } else {
         _isProcessing = false;
         _hasStarted = false;
@@ -88,36 +103,75 @@ class NFCNotifier extends ChangeNotifier {
       print('DEBUG: Starting NFC tag reading...');
       String? decodedText;
 
+      // Treat tag.data as dynamic and only access map keys when it's a Map.
+      final dynamic raw = (tag as dynamic).data;
+
       // Check NDEF data first (more reliable)
-      if (tag.data.containsKey('ndef') && tag.data['ndef'] != null) {
-        final ndefData = tag.data['ndef'];
-        if (ndefData['cachedMessage'] != null &&
+      if (raw is Map && raw.containsKey('ndef') && raw['ndef'] != null) {
+        final ndefData = raw['ndef'];
+        if (ndefData is Map &&
+            ndefData['cachedMessage'] != null &&
+            ndefData['cachedMessage'] is Map &&
             ndefData['cachedMessage']['records'] != null &&
+            (ndefData['cachedMessage']['records'] is List) &&
             ndefData['cachedMessage']['records'].isNotEmpty) {
-          final payload = ndefData['cachedMessage']['records'][0]['payload'];
-          if (payload != null && payload.isNotEmpty) {
-            int languageCodeLength = payload[0] & 0x3F;
-            decodedText =
-                String.fromCharCodes(payload.sublist(languageCodeLength + 1));
-            print(
-                'DEBUG: NDEF data extracted: ${decodedText.length > 20 ? decodedText.substring(0, 20) + '...' : decodedText}');
+          final record = ndefData['cachedMessage']['records'][0];
+          final payload = (record is Map) ? record['payload'] : null;
+          if (payload != null) {
+            try {
+              // Normalize to List<int>/Uint8List if possible
+              final List<int> payloadList = List<int>.from(payload);
+
+              // Try NDEF Text record parse (status byte + language code)
+              if (payloadList.isNotEmpty) {
+                int languageCodeLength = payloadList[0] & 0x3F;
+                if (languageCodeLength + 1 < payloadList.length) {
+                  decodedText = String.fromCharCodes(
+                      payloadList.sublist(languageCodeLength + 1));
+                  print(
+                      'DEBUG: NDEF text parse extracted: ${decodedText.length > 20 ? decodedText.substring(0, 20) + '...' : decodedText}');
+                }
+              }
+
+              // If NDEF text parse failed, try direct UTF-8 decode as fallback
+              if (decodedText == null && payloadList.isNotEmpty) {
+                try {
+                  decodedText = String.fromCharCodes(payloadList);
+                  print(
+                      'DEBUG: NDEF fallback direct decode extracted: ${decodedText.length > 20 ? decodedText.substring(0, 20) + '...' : decodedText}');
+                } catch (e) {
+                  print('DEBUG: direct payload decode failed: $e');
+                }
+              }
+            } catch (e) {
+              print('DEBUG: failed to normalize NDEF payload: $e');
+            }
           }
         }
       }
 
       // Fallback to Mifare Ultralight if NDEF failed
-      if (decodedText == null && tag.data.containsKey('mifareultralight')) {
-        final mifareData = tag.data['mifareultralight'];
-        if (mifareData != null && mifareData['data'] != null) {
-          List<int> data = mifareData['data'];
-          decodedText = String.fromCharCodes(data);
-          print(
-              'DEBUG: Mifare data extracted: ${decodedText.length > 20 ? decodedText.substring(0, 20) + '...' : decodedText}');
+      if (decodedText == null &&
+          raw is Map &&
+          raw.containsKey('mifareultralight')) {
+        final mifareData = raw['mifareultralight'];
+        if (mifareData is Map && mifareData['data'] != null) {
+          try {
+            final dynamic dataListRaw = mifareData['data'];
+            final List<int> dataList = List<int>.from(dataListRaw);
+            if (dataList.isNotEmpty) {
+              decodedText = String.fromCharCodes(dataList);
+              print(
+                  'DEBUG: Mifare data extracted: ${decodedText.length > 20 ? decodedText.substring(0, 20) + '...' : decodedText}');
+            }
+          } catch (e) {
+            print('DEBUG: failed to parse mifare data: $e');
+          }
         }
       }
 
       if (decodedText == null || decodedText.isEmpty) {
-        print('DEBUG: No data found on NFC card');
+        print('DEBUG: No data found on NFC card — raw tag: $raw');
         _message = "No Data Found";
         safeNotifyListeners();
         return;
@@ -151,6 +205,15 @@ Union Name: ${data["unionName"] ?? "N/A"}
       _vcid = null;
       safeNotifyListeners();
     }
+  }
+
+  /// Public wrapper to allow external callers to hand an [NfcTag] to this
+  /// notifier for parsing/decryption. This simply forwards to the private
+  /// [_readFromTag] and preserves the notifier behaviour (message/vcid).
+  ///
+  /// nfcUIDreader.dart
+  Future<void> handleTag(NfcTag tag) async {
+    await _readFromTag(tag: tag);
   }
 }
 
