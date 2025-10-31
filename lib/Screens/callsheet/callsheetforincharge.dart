@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import '../../ApiCalls/apicall.dart' as apicalls;
+import 'callsheet_detail.dart';
 
 class Callsheetforincharge extends StatefulWidget {
   const Callsheetforincharge({super.key});
@@ -275,15 +276,7 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
                             ),
                           ),
                           ...callSheetData.map((callSheet) =>
-                              _buildCallSheetCard(
-                                context,
-                                callSheet['callSheetId']?.toString() ?? "N/A",
-                                callSheet['callSheetNo']?.toString() ?? "N/A",
-                                callSheet['projectName'] ?? "N/A",
-                                callSheet['createdDate'] ?? "N/A",
-                                callSheet['shift'] ?? "N/A",
-                                callSheet['callsheetStatus'] ?? "N/A",
-                              )),
+                              _buildCallSheetCard(context, callSheet)),
                         ],
                       ],
                     ),
@@ -300,18 +293,25 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
 
   // Build call sheet card widget similar to incharge report style
   Widget _buildCallSheetCard(
-      BuildContext context,
-      String callSheetId,
-      String callSheetNo,
-      String projectName,
-      String createdDate,
-      String shift,
-      String status) {
+      BuildContext context, Map<String, dynamic> callSheet) {
+    // Extract fields from callSheet map
+    final String callSheetId = callSheet['callSheetId']?.toString() ?? "N/A";
+    final String callSheetNo = callSheet['callSheetNo']?.toString() ?? "N/A";
+    final String projectName = callSheet['projectName']?.toString() ?? "N/A";
+    final String createdDate = callSheet['createdDate']?.toString() ??
+        callSheet['date']?.toString() ??
+        "N/A";
+    final String shift = callSheet['shift']?.toString() ?? "N/A";
+    final String status = callSheet['callsheetStatus']?.toString() ?? "N/A";
     return GestureDetector(
       onTap: () {
-        // Print for debug
-        print('Tapped on call sheet: $callSheetId');
-        // You can add navigation to call sheet details here if needed
+        // Navigate to the full callsheet detail screen (new file)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallsheetDetailScreen(callsheet: callSheet),
+          ),
+        );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

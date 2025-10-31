@@ -405,7 +405,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       size: 24,
                     ),
                     title: Text(
-                      'vSync',
+                      'NFC',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -417,7 +417,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Sqlitelist(),
+                          builder: (context) => NfcHomePage(),
                         ),
                       );
                     },
@@ -435,7 +435,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       size: 24,
                     ),
                     title: Text(
-                      'NFC',
+                      'vSync',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -447,7 +447,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => NfcHomePage(),
+                          builder: (context) => Sqlitelist(),
                         ),
                       );
                     },

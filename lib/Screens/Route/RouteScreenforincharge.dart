@@ -37,56 +37,48 @@ class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFF355E8C),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: _getScreenWidget(_currentIndex),
+
+      body: SafeArea(
+        child: _getScreenWidget(_currentIndex),
+      ),
+      // Align(
+      //   alignment: Alignment.bottomCenter,
+      //   child: SafeArea(
+      //     top: false,
+      //     child: SizedBox(
+      //       height: 70,
+      //       child: Stack(
+      //         children: [
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Color(0xFF355E8C),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              child: SizedBox(
-                height: 70,
-                child: Stack(
-                  children: [
-                    BottomNavigationBar(
-                      backgroundColor: Color(0xFF355E8C),
-                      items: const [
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.home),
-                          label: 'Home',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.add_circle_outline),
-                          label: 'Trip',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.list),
-                          label: 'Callsheet',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.calendar_month),
-                          label: 'Reports',
-                        ),
-                        // BottomNavigationBarItem(
-                        //   icon: Icon(Icons.trip_origin),
-                        //   label: 'Trip',
-                        // ),
-                      ],
-                      currentIndex: _currentIndex,
-                      onTap: _onItemTapped,
-                      selectedItemColor: Colors.white,
-                      unselectedItemColor: Colors.white,
-                      showUnselectedLabels: true,
-                      type: BottomNavigationBarType.fixed,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            label: 'Trip',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list),
+            label: 'Callsheet',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month),
+            label: 'Reports',
+          ),
+          // BottomNavigationBarItem(
+          //   icon: Icon(Icons.trip_origin),
+          //   label: 'Trip',
+          // ),
         ],
+        currentIndex: _currentIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white,
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }

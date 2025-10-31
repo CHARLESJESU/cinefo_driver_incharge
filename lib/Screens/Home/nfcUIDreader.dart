@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager_ndef/nfc_manager_ndef.dart';
 import '../../ApiCalls/apicall.dart';
+import 'package:sqflite/sqflite.dart';
 import '../../variables.dart';
 
 class NfcHomePage extends StatefulWidget {
@@ -14,14 +16,17 @@ class NfcHomePage extends StatefulWidget {
 }
 
 class _NfcHomePageState extends State<NfcHomePage> {
-  String _status = 'Press "Start" and tap a tag';
-  String? _uidHex;
+  String _status = 'Ready to scan NFC card. Please tap your card...';
+  // ignore: unused_field
+  String? _uidHex; // Used internally for processing
   String? _uidDec;
-  String? _rawData;
   bool _isSubmitting = false;
+  bool _isRegistrationComplete = false;
+  Map<String, dynamic>? _userDetails;
 
   bool _isAvailable = false;
   bool _sessionRunning = false;
+  int _countdown = 0;
 
   @override
   void initState() {
@@ -33,6 +38,10 @@ class _NfcHomePageState extends State<NfcHomePage> {
     try {
       bool available = await NfcManager.instance.isAvailable();
       setState(() => _isAvailable = available);
+      if (available && !_isRegistrationComplete) {
+        // Automatically start scanning when available
+        _startSession();
+      }
     } catch (_) {
       setState(() => _isAvailable = false);
     }
@@ -169,6 +178,36 @@ class _NfcHomePageState extends State<NfcHomePage> {
 
   /// (Removed long recursive string search to simplify code.)
 
+  // Method to get login data from SQLite database
+  Future<Map<String, dynamic>?> _getLoginDataFromSQLite() async {
+    try {
+      final databasePath = await getDatabasesPath();
+      final dbPath = '${databasePath}/production_login.db';
+
+      final database = await openDatabase(
+        dbPath,
+        version: 1,
+      );
+
+      final List<Map<String, dynamic>> maps = await database.query(
+        'login_data',
+        orderBy: 'id ASC', // Get the first user (lowest ID)
+        limit: 1,
+      );
+
+      await database.close();
+
+      if (maps.isNotEmpty) {
+        print('📊 Retrieved login data from SQLite: ${maps.first}');
+        return maps.first;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting login data from SQLite: $e');
+      return null;
+    }
+  }
+
   void _startSession() async {
     if (!_isAvailable) {
       setState(() => _status = 'NFC not available on this device');
@@ -179,7 +218,6 @@ class _NfcHomePageState extends State<NfcHomePage> {
       _status = 'Waiting for tag...';
       _uidHex = null;
       _uidDec = null;
-      _rawData = null;
       _sessionRunning = true;
     });
 
@@ -296,9 +334,11 @@ class _NfcHomePageState extends State<NfcHomePage> {
             setState(() {
               _uidHex = hex;
               _uidDec = dec;
-              _rawData = raw;
-              _status = 'Tag found — UID: $hex';
+              _status = 'Tag found — Processing...';
             });
+
+            // Automatically call decrypt API
+            await _processNfcData(raw, dec);
           } else {
             // fallback: try some properties
             dynamic maybeId = _tryGetProp((tag as dynamic).data, 'id') ??
@@ -311,16 +351,20 @@ class _NfcHomePageState extends State<NfcHomePage> {
               setState(() {
                 _uidHex = hex;
                 _uidDec = dec;
-                _rawData = raw;
-                _status = 'Tag found — UID: $hex';
+                _status = 'Tag found — Processing...';
               });
+
+              // Automatically call decrypt API
+              await _processNfcData(raw, dec);
             } else {
               setState(() {
                 _status = 'Tag found — raw data captured';
-                _rawData = raw;
                 _uidHex = null;
                 _uidDec = null;
               });
+
+              // Try to process with raw data only
+              await _processNfcData(raw, '');
             }
           }
         } catch (e) {
@@ -335,110 +379,257 @@ class _NfcHomePageState extends State<NfcHomePage> {
     );
   }
 
-  void _stopSession() async {
-    await NfcManager.instance.stopSession();
+  // Method to start countdown and automatically restart scanning
+  void _startCountdownAndRestart() {
     setState(() {
-      _sessionRunning = false;
-      _status = 'Session stopped';
+      _countdown = 3; // Start with 3 seconds
+    });
+
+    // Update countdown every second
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        _countdown--;
+      });
+
+      if (_countdown <= 0) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _isRegistrationComplete = false;
+            _uidHex = null;
+            _uidDec = null;
+            _userDetails = null;
+            _status = 'Ready to scan next NFC card...';
+            _countdown = 0;
+          });
+          _startSession(); // Automatically start next scan
+        }
+      }
     });
   }
 
-  Future<void> _submitData() async {
-    if (_rawData == null && _uidHex == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No NFC data to submit. Please scan a tag first.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
+  Future<void> _processNfcData(String rawData, String uidDec) async {
     try {
+      setState(() => _status = 'Decrypting data...');
+
+      // Check if vsid is empty and get it from SQLite if needed
+      String currentVsid = vsid ?? '';
+      if (currentVsid.isEmpty) {
+        try {
+          final loginData = await _getLoginDataFromSQLite();
+          if (loginData != null && loginData['vsid'] != null) {
+            currentVsid = loginData['vsid'].toString();
+            print('📊 Retrieved vsid from SQLite: $currentVsid');
+          } else {
+            print('⚠️ No vsid found in SQLite database');
+          }
+        } catch (e) {
+          print('❌ Error retrieving vsid from SQLite: $e');
+        }
+      }
+
       // Call the decrypt API with all three parameters
       final result = await decryptapi(
-        encryptdata: _rawData ?? '', // Raw NFC data
-        uiddata: _uidDec ?? '', // UID in hex format
-        vsid: vsid ?? '', // Using vsid from variables.dart
+        encryptdata: rawData, // Raw NFC data
+        uiddata: uidDec, // UID in decimal format
+        vsid: currentVsid, // Using vsid from variables or SQLite
       );
 
       if (mounted) {
         if (result['success'] == true) {
-          final vcid = result['vcid'];
-          print('✅ VCID extracted: $vcid');
+          // Parse the response to extract user details
+          try {
+            final responseBody = result['body'];
+            print('🔍 Decrypt API Response: $responseBody');
 
-          // If vcid is available, call datacollectionapi
-          if (vcid != null) {
-            try {
-              final dataCollectionResult = await datacollectionapi(
-                vcid: vcid,
-                rfid: _uidDec ?? '', // Using UID hex as RFID
-                vsid: vsid ?? '', // Using vsid from variables.dart
-              );
+            // Parse JSON response to extract user details
+            final responseData = jsonDecode(responseBody);
+            final userData = responseData['responseData'];
 
-              if (dataCollectionResult['success'] == true) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Data collection successful!\nVCID: $vcid\nDecrypt Response: ${result['body']}\nData Collection Response: ${dataCollectionResult['body']}'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-                print('✅ Data collection API successful');
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Decrypt successful but data collection failed!\nVCID: $vcid\nData Collection Error: ${dataCollectionResult['body']}'),
-                    backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
-                print(
-                    '❌ Data collection API failed: ${dataCollectionResult['body']}');
-              }
-            } catch (dataCollectionError) {
+            if (userData != null) {
+              final mobileNumber =
+                  userData['mobileNumber']?.toString() ?? 'N/A';
+              final fname = userData['fname']?.toString() ?? 'N/A';
+              final code = userData['code']?.toString() ?? 'N/A';
+              final vcid = userData['vcid'];
+
+              // Store user details and vcid for later use
+              _userDetails = {
+                'mobileNumber': mobileNumber,
+                'fname': fname,
+                'code': code,
+                'vcid': vcid,
+              };
+
+              setState(() => _status = 'User details fetched successfully');
+
+              // Show user details dialog
+              _showUserDetailsDialog(mobileNumber, fname, code);
+            } else {
+              setState(() => _status = 'Failed to extract user details');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                      'Decrypt successful but data collection error!\nVCID: $vcid\nError: $dataCollectionError'),
+                  content: Text('Failed to extract user details from response'),
                   backgroundColor: Colors.orange,
-                  duration: const Duration(seconds: 4),
                 ),
               );
-              print('❌ Error in data collection API: $dataCollectionError');
             }
-          } else {
+          } catch (parseError) {
+            print('❌ Error parsing decrypt response: $parseError');
+            setState(() => _status = 'Error parsing response');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                    'Decrypt successful but no VCID found!\nResponse: ${result['body']}'),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 4),
+                content: Text('Error parsing decrypt response: $parseError'),
+                backgroundColor: Colors.red,
               ),
             );
           }
         } else {
+          setState(() => _status = 'Decryption failed');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Submission failed: ${result['body']}'),
+              content: Text('Decryption failed: ${result['body']}'),
               backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
             ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _status = 'Error processing NFC data');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting data: $e'),
+            content: Text('Error processing NFC data: $e'),
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  void _showUserDetailsDialog(String mobileNumber, String fname, String code) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('User Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Mobile Number: $mobileNumber',
+                  style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('Name: $fname', style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('Code: $code', style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Call data collection API after OK is pressed
+                _performDataCollection();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performDataCollection() async {
+    if (_userDetails == null || _userDetails!['vcid'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No user details available for registration'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _status = 'Registering attendance...';
+    });
+
+    try {
+      // Check if vsid is empty and get it from SQLite if needed
+      String currentVsid = vsid ?? '';
+      if (currentVsid.isEmpty) {
+        try {
+          final loginData = await _getLoginDataFromSQLite();
+          if (loginData != null && loginData['vsid'] != null) {
+            currentVsid = loginData['vsid'].toString();
+            print(
+                '📊 Retrieved vsid from SQLite for data collection: $currentVsid');
+          } else {
+            print('⚠️ No vsid found in SQLite database for data collection');
+          }
+        } catch (e) {
+          print('❌ Error retrieving vsid from SQLite for data collection: $e');
+        }
+      }
+
+      final dataCollectionResult = await datacollectionapi(
+        vcid: _userDetails!['vcid'],
+        rfid: _uidDec ?? '', // Using UID decimal as RFID
+        vsid: currentVsid, // Using vsid from variables or SQLite
+      );
+
+      if (mounted) {
+        if (dataCollectionResult['success'] == true) {
+          setState(() {
+            _isRegistrationComplete = true;
+            _status = 'Registration completed successfully';
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Successfully registered!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          print('✅ Data collection API successful');
+
+          // Start countdown and auto-restart scanning
+          _startCountdownAndRestart();
+        } else {
+          setState(() => _status = 'Registration failed');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Registration failed: ${dataCollectionResult['body']}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          print(
+              '❌ Data collection API failed: ${dataCollectionResult['body']}');
+        }
+      }
+    } catch (dataCollectionError) {
+      if (mounted) {
+        setState(() => _status = 'Registration error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration error: $dataCollectionError'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        print('❌ Error in data collection API: $dataCollectionError');
       }
     } finally {
       if (mounted) {
@@ -448,112 +639,153 @@ class _NfcHomePageState extends State<NfcHomePage> {
   }
 
   @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('NFC Attendance Scanner')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      _isAvailable ? Icons.nfc : Icons.nfc_outlined,
+                      size: 48,
+                      color: _isAvailable ? Colors.green : Colors.grey,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'NFC Status: ${_isAvailable ? "Available" : "Not Available"}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _isAvailable ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'Status:',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _status,
+                      style: const TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (_isSubmitting) ...[
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+            if (_isRegistrationComplete) ...[
+              Card(
+                color: Colors.green.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle,
+                              color: Colors.green, size: 32),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Attendance registered successfully!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_countdown > 0) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.refresh,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Next scan starts in $_countdown seconds...',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else if (!_isAvailable) ...[
+              const Card(
+                color: Colors.red,
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'NFC is not available on this device',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ] else ...[
+              const Text(
+                'Hold your NFC card near the phone to scan',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   void dispose() {
     if (_sessionRunning) {
       NfcManager.instance.stopSession();
     }
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('NFC UID Reader')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text('NFC available: ${_isAvailable ? "Yes" : "No"}'),
-            const SizedBox(height: 12),
-            Text('Status: $_status'),
-            const SizedBox(height: 12),
-            if (_uidHex != null)
-              SelectableText(
-                'UID: $_uidHex',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            if (_uidDec != null) ...[
-              const SizedBox(height: 6),
-              SelectableText(
-                'RFID number: $_uidDec',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Expanded(
-              child: Center(
-                child: _rawData == null
-                    ? const Text('Raw tag data will appear here')
-                    : SingleChildScrollView(
-                        child: SelectableText(
-                          _rawData!,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _sessionRunning ? null : _startSession,
-                  child: const Text('Start'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: _sessionRunning ? _stopSession : null,
-                  child: const Text('Stop'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Submit button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed:
-                    (_rawData != null || _uidHex != null) && !_isSubmitting
-                        ? _submitData
-                        : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: _isSubmitting
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text('Submitting...'),
-                        ],
-                      )
-                    : const Text(
-                        'Submit to Decrypt API',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Tap the tag to the phone\'s NFC antenna area when it says "Waiting for tag...".',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
