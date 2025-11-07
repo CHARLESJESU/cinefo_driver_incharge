@@ -7,6 +7,7 @@ import 'package:nfc_manager/nfc_manager.dart';
 import 'package:ota_update/ota_update.dart';
 import 'package:production/Screens/Route/RouteScreenforincharge.dart';
 import 'package:production/Screens/Route/RouteScreenfordriver.dart';
+import 'package:production/Screens/Route/RouteScreenforAgent.dart';
 import 'package:production/methods.dart';
 import 'package:production/variables.dart';
 import 'package:sqflite/sqflite.dart';
@@ -44,6 +45,7 @@ class _LoginscreenState extends State<Loginscreen> {
           profile_image TEXT,
           registered_movie TEXT,
           mobile_number TEXT,
+          subUnitName TEXT,
           password TEXT,
           project_id TEXT,
           production_type_id INTEGER,
@@ -68,9 +70,23 @@ class _LoginscreenState extends State<Loginscreen> {
           unitid INTEGER,
           subunitid INTEGER,
           platformlogo TEXT,
+          isAgentt INTEGER DEFAULT 0,
           driver BOOLEAN DEFAULT 0
         )
       ''');
+      // Migration: if table already existed without 'isAgentt' column, add it.
+      try {
+        final columns = await db.rawQuery('PRAGMA table_info(login_data)');
+        final columnNames = columns.map((c) => c['name']?.toString()).toList();
+        if (!columnNames.contains('isAgentt')) {
+          print('🔧 Adding missing column isAgentt to login_data table');
+          await db.execute(
+              'ALTER TABLE login_data ADD COLUMN isAgentt INTEGER DEFAULT 0');
+          print('✅ Column isAgentt added');
+        }
+      } catch (e) {
+        print('⚠️ Migration check for isAgentt failed: $e');
+      }
       print('✅ SQLite login_data table created/verified successfully');
     } catch (e) {
       print('❌ Error creating login_data table: $e');
@@ -267,6 +283,8 @@ class _LoginscreenState extends State<Loginscreen> {
           'registered_movie':
               loginresponsebody?['responseData']?['projectName'] ?? '',
           'mobile_number': loginmobilenumber.text,
+          'subUnitName':
+              loginresponsebody?['responseData']?['subUnitName'] ?? '',
           'password': loginpassword.text,
           'project_id': loginresponsebody?['responseData']?['projectId'] ?? '',
           'production_type_id':
@@ -293,6 +311,8 @@ class _LoginscreenState extends State<Loginscreen> {
           'unitid': loginresponsebody?['unitid'] ?? 0,
           'subunitid': loginresponsebody?['subunitid'] ?? 0,
           'platformlogo': loginresponsebody?['platformlogo']?.toString() ?? '',
+          // Mark whether this login is for an agent (unitid == 18)
+          'isAgentt': (loginresponsebody?['unitid'] == 18) ? 1 : 0,
           'driver': 0, // Default value, will be updated based on navigation
         };
 
@@ -402,7 +422,7 @@ class _LoginscreenState extends State<Loginscreen> {
 
   // Update specific login data fields for driver response
   Future<void> updateDriverLoginData(
-      String projectName, String projectId, String productionHouse) async {
+      String projectName, String projectId, String productionHouse,int productionTypeId) async {
     print('🔄 updateDriverLoginData called');
     print('🔍 Input values:');
     print('  projectName: "$projectName"');
@@ -436,6 +456,8 @@ class _LoginscreenState extends State<Loginscreen> {
             'registered_movie': projectName,
             'project_id': projectId,
             'production_house': productionHouse,
+            'production_type_id':productionTypeId,
+
           },
           where: 'id = ?',
           whereArgs: [userId],
@@ -546,7 +568,14 @@ class _LoginscreenState extends State<Loginscreen> {
               'byrZ4bZrKm09R4O7WH6SPd7tvAtGnK1/plycMSP8sD5TKI/VZR0tHBKyO/ogYUIf4Qk6HJXvgyGzg58v0xmlMoRJABt3qUUWGtnJj/EKBsrOaFFGZ6xAbf6k6/ktf2gKsruyfbF2/D7r1CFZgUlmTmubGS1oMZZTSU433swBQbwLnPSreMNi8lIcHJKR2WepQnzNkwPPXxA4/XuZ7CZqqsfO6tmjnH47GoHr7H+FC8GK24zU3AwGIpX+Yg/efeibwapkP6mAya+5BTUGtNtltGOm0q7+2EJAfNcrSTdmoDB8xBerLaNNHhwVHowNIu+8JZl2QM0F/gmVpB55cB8rqg=='
         },
         body:
-            jsonEncode(<String, String>{"baseURL": "drivermember.cinefo.club"}),
+            jsonEncode(<String, String>{
+              // "baseURL": driverbaseurlfordev  // production for driver
+             // "baseURL": agentbaseurlforproduction
+              "baseURL": agentbaseurlfordev
+              // "baseURL": driverbaseurlfordev
+              // "baseURL": "agentmembers.cinefo.comddddddddddddddd" //production for agent
+              // "baseURL": "agentsmembers.cinefo.club"
+            }),
       );
       if (response.statusCode == 200) {
         final responseBody = json.decode(response.body);
@@ -588,7 +617,10 @@ class _LoginscreenState extends State<Loginscreen> {
           'DEVICETYPE': '2',
           'Content-Type': 'application/json; charset=UTF-8',
           'VPID': baseurlresult?['vpid']?.toString() ?? '',
-          "BASEURL": "drivermember.cinefo.club",
+          // "BASEURL": driverbaseurlfordev,  // production for driver
+          // "BASEURL": agentbaseurlforproduction,
+          "BASEURL": agentbaseurlfordev,
+          // "BASEURL": driverbaseurlfordev,
           'VPTEMPLATEID': baseurlresult?['vptemplteID']?.toString() ?? '',
           'VMETID':
               'jcd3r0UZg4FnqnFKCfAZqwj+d5Y7TJhxN6vIvKsoJIT++90iKP3dELmti79Q+W7aVywvVbhfoF5bdW32p33PbRRTT27Jt3pahRrFzUe5s0jQBoeE0jOraLITDQ6RBv0QoscoOGxL7n0gEWtLE15Bl/HSF2kG5pQYft+ZyF4DNsLf7tGXTz+w/30bv6vMTGmwUIDWqbEet/+5AAjgxEMT/G4kiZifX0eEb3gMxycdMchucGbMkhzK+4bvZKmIjX+z6uz7xqb1SMgPnjKmoqCk8w833K9le4LQ3KSYkcVhyX9B0Q3dDc16JDtpEPTz6b8rTwY8puqlzfuceh5mWogYuA==',
@@ -652,16 +684,16 @@ class _LoginscreenState extends State<Loginscreen> {
             // Only navigate after dialog is handled
             if (didUpdate || updateTypeId != 1) {
               if (mounted) {
-                // Check if user is a driver (unitid == 9) before navigation
-                if (responseBody['unitid'] != 9) {
-                  // Show dialog for non-driver users
+                // Only restrict navigation if NOT a driver (9) or agent (18)
+                if (responseBody['unitid'] != 9 && responseBody['unitid'] != 18) {
+                  // Show dialog for unauthorized users
                   showDialog(
                     context: context,
                     barrierDismissible: false,
                     builder: (BuildContext context) {
                       return AlertDialog(
                         title: Text('Access Denied'),
-                        content: Text('You are not a driver'),
+                        content: Text('You are not authorized to use this app'),
                         actions: [
                           TextButton(
                             onPressed: () {
@@ -770,150 +802,175 @@ class _LoginscreenState extends State<Loginscreen> {
 
             // Check if user is a driver (unitid == 9)
             if (mounted) {
-              if (loginresponsebody?['unitid'] == 9) {
-                // Make additional HTTP request for drivers
-                try {
-                  print(
-                      '🚗 User is a driver (unitid == 9), making additional request...');
-                  final driverResponse = await http.post(
-                    processSessionRequest,
-                    headers: <String, String>{
-                      'Content-Type': 'application/json; charset=UTF-8',
-                      'VMETID':
-                          'P8eqnuQ9H24nzw+j/Oq8qih3vw9biFxC4i2XpRLOiSOcHiiqKN5II1gsqhUCeEM5TXUq+Hl19zup0tT7YnANhHFUL5HX9awoCOuKdn+nbYUX4OV3p5oIdjfLmdXQqc4JwrnpQy3kVFX2qtPPooFy9kIRzSjEKcQd0Rhqg4CuDYUxiBVesHhZdpAiTvRvrd4VOreauP6FysEt72O7XhOWvZilN9hQv8mQ+5ALfBFOrTuRu+9P7FczirlqCdUMFhXa64XTupbb4acIq2+bTYBd0I5isowfPBRKFc+GJcJEFnhCknqpDq/r9yxowFOcJUgIMjc0Tc3/S4JiasDqIiouYQ==',
-                      'VSID': loginresponsebody?['vsid']?.toString() ?? "",
-                    },
-                    body: jsonEncode(<String, dynamic>{
-                      "vmId": loginresponsebody?['responseData']?['vmid'] ?? 0,
-                    }),
-                  );
-                  vsid = loginresponsebody?['vsid']?.toString() ?? "";
-                  print(
-                      '🚗 Driver HTTP Response Status: ${driverResponse.statusCode}');
-                  print('🚗 Driver HTTP Response Body: ${driverResponse.body}');
+              final int? _unitid = loginresponsebody?['unitid'];
 
-                  if (driverResponse.statusCode == 200) {
-                    try {
-                      final driverResponseBody =
-                          json.decode(driverResponse.body);
-                      print('🚗 Driver Response JSON: $driverResponseBody');
-                      print(
-                          '🚗 Driver Response Keys: ${driverResponseBody.keys.toList()}');
+              // If unitid == 18 => Agent
+             if (_unitid == 9 || _unitid == 18) {
+                 // Make additional HTTP request for drivers
+                 try {
+                   print(
+                       '🚗 User is a driver (unitid == 9), making additional request...');
+                   final driverResponse = await http.post(
+                     processSessionRequest,
+                     headers: <String, String>{
+                       'Content-Type': 'application/json; charset=UTF-8',
+                       'VMETID':
+                           'P8eqnuQ9H24nzw+j/Oq8qih3vw9biFxC4i2XpRLOiSOcHiiqKN5II1gsqhUCeEM5TXUq+Hl19zup0tT7YnANhHFUL5HX9awoCOuKdn+nbYUX4OV3p5oIdjfLmdXQqc4JwrnpQy3kVFX2qtPPooFy9kIRzSjEKcQd0Rhqg4CuDYUxiBVesHhZdpAiTvRvrd4VOreauP6FysEt72O7XhOWvZilN9hQv8mQ+5ALfBFOrTuRu+9P7FczirlqCdUMFhXa64XTupbb4acIq2+bTYBd0I5isowfPBRKFc+GJcJEFnhCknqpDq/r9yxowFOcJUgIMjc0Tc3/S4JiasDqIiouYQ==',
+                       'VSID': loginresponsebody?['vsid']?.toString() ?? "",
+                     },
+                     body: jsonEncode(<String, dynamic>{
+                       "vmId": loginresponsebody?['responseData']?['vmid'] ?? 0,
+                     }),
+                   );
+                   vsid = loginresponsebody?['vsid']?.toString() ?? "";
+                   print(
+                       '🚗 Driver HTTP Response Status: ${driverResponse.statusCode}');
+                   print('🚗 Driver HTTP Response Body: ${driverResponse.body}');
 
-                      // Update SQLite with driver response data - Access nested responseData
-                      final responseData = driverResponseBody['responseData'];
-                      final projectName =
-                          responseData?['projectName']?.toString() ?? '';
-                      final projectId =
-                          responseData?['projectId']?.toString() ?? '';
-                      final productionHouse =
-                          responseData?['productionHouse']?.toString() ?? '';
+                   if (driverResponse.statusCode == 200) {
+                     try {
+                       final driverResponseBody =
+                           json.decode(driverResponse.body);
+                       print('🚗 Driver Response JSON: $driverResponseBody');
+                       print(
+                           '🚗 Driver Response Keys: ${driverResponseBody.keys.toList()}');
 
-                      print('🔍 Extracted values from responseData:');
-                      print('🔍 projectName: "$projectName"');
-                      print('🔍 projectId: "$projectId"');
-                      print('🔍 productionHouse: "$productionHouse"');
+                       // Update SQLite with driver response data - Access nested responseData
+                       final responseData = driverResponseBody['responseData'];
+                       final projectName =
+                           responseData?['projectName']?.toString() ?? '';
+                       final projectId =
+                           responseData?['projectId']?.toString() ?? '';
+                       final productionHouse =
+                           responseData?['productionHouse']?.toString() ?? '';
+                       final productionTypeId =
+                           responseData?['productionTypeId'] ?? 0;
 
-                      // Always try to update, even with empty values for testing
-                      print('🚗 Attempting SQLite update...');
-                      await updateDriverLoginData(
-                          projectName, projectId, productionHouse);
-                      print('🚗 SQLite update call completed');
+                       print('🔍 Extracted values from responseData:');
+                       print('🔍 projectName: "$projectName"');
+                       print('🔍 projectId: "$projectId"');
+                       print('🔍 productionHouse: "$productionHouse"');
+                       print('🔍 productionHouse: "$productionTypeId"');
 
-                      if (projectName.isNotEmpty ||
-                          projectId.isNotEmpty ||
-                          productionHouse.isNotEmpty) {
-                        print('🚗 Updated SQLite with driver response data');
-                      } else {
-                        print(
-                            '⚠️ All driver data fields are empty, but update was attempted');
-                      }
+                       // Always try to update, even with empty values for testing
+                       print('🚗 Attempting SQLite update...');
+                       await updateDriverLoginData(
+                           projectName, projectId, productionHouse,productionTypeId);
+                       print('🚗 SQLite update call completed');
 
-                      // Conditional navigation based on responseData content
-                      if (driverResponseBody['responseData'] != null &&
-                          driverResponseBody['responseData'].toString() !=
-                              '{}' &&
-                          driverResponseBody['responseData']
-                              .toString()
-                              .isNotEmpty) {
-                        print(
-                            '🚗 ResponseData is not empty, navigating to RoutescreenforIncharge');
+                       if (projectName.isNotEmpty ||
+                           projectId.isNotEmpty ||
+                           productionHouse.isNotEmpty) {
+                         print('🚗 Updated SQLite with driver response data');
+                       } else {
+                         print(
+                             '⚠️ All driver data fields are empty, but update was attempted');
+                       }
 
-                        // Update driver field to false for incharge
-                        await updateDriverField(false);
+                       // Conditional navigation based on responseData content
+                       if (driverResponseBody['responseData'] != null &&
+                           driverResponseBody['responseData'].toString() !=
+                               '{}' && _unitid == 9 &&
+                           driverResponseBody['responseData']
+                               .toString()
+                               .isNotEmpty) {
+                         print(
+                             '🚗 ResponseData is not empty and unitid is 9, navigating to RoutescreenforIncharge');
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const RoutescreenforIncharge()),
-                        );
-                      } else {
-                        print(
-                            '🚗 ResponseData is empty, navigating to Routescreenfordriver');
+                         // Update driver field to false for incharge
+                         await updateDriverField(false);
 
-                        // Update driver field to true for driver
-                        await updateDriverField(true);
+                         Navigator.push(
+                           context,
+                           MaterialPageRoute(
+                               builder: (context) =>
+                                   const RoutescreenforIncharge()
+                               // const Routescreenfordriver()
+                           ),
+                         );
+                       } else if (driverResponseBody['responseData'] != null &&
+                           driverResponseBody['responseData'].toString() !=
+                               '{}' && _unitid == 18 &&
+                           driverResponseBody['responseData']
+                               .toString()
+                               .isNotEmpty) {
+                         print(
+                             '🚗 ResponseData is not empty and unit is 18, navigating to Routescreenforagent');
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const Routescreenfordriver()),
-                        );
-                      }
-                    } catch (e) {
-                      print('❌ Error processing driver response JSON: $e');
-                      print(
-                          '🚗 Raw driver response body: ${driverResponse.body}');
+                         // Update driver field to false for incharge
+                         await updateDriverField(false);
 
-                      // If JSON parsing fails, go to driver screen
-                      print(
-                          '🚗 JSON parsing failed, navigating to Routescreenfordriver');
+                         Navigator.push(
+                           context,
+                           MaterialPageRoute(
+                               builder: (context) => const RoutescreenforAgent()),
+                         );
+                       } else {
+                         print(
+                             '🚗 ResponseData is empty, navigating to Routescreenfordriver');
 
-                      // Update driver field to true for driver
-                      await updateDriverField(true);
+                         // Update driver field to true for driver
+                         await updateDriverField(true);
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const Routescreenfordriver()),
-                      );
-                    }
-                  } else {
-                    print(
-                        '❌ Driver response status code: ${driverResponse.statusCode}');
-                    print('❌ Driver response body: ${driverResponse.body}');
+                         Navigator.push(
+                           context,
+                           MaterialPageRoute(
+                               builder: (context) =>
+                                   const Routescreenfordriver()),
+                         );
+                       }
+                     } catch (e) {
+                       print('❌ Error processing driver response JSON: $e');
+                       print(
+                           '🚗 Raw driver response body: ${driverResponse.body}');
 
-                    // If driver response fails, go to driver screen
-                    print(
-                        '🚗 Driver response failed, navigating to Routescreenfordriver');
+                       // If JSON parsing fails, go to driver screen
+                       print(
+                           '🚗 JSON parsing failed, navigating to Routescreenfordriver');
 
-                    // Update driver field to true for driver
-                    await updateDriverField(true);
+                       // Update driver field to true for driver
+                       await updateDriverField(true);
 
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const Routescreenfordriver()),
-                    );
-                  }
-                } catch (e) {
-                  print('❌ Error in driver HTTP request: $e');
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(
+                             builder: (context) => const Routescreenfordriver()),
+                       );
+                     }
+                   } else {
+                     print(
+                         '❌ Driver response status code: ${driverResponse.statusCode}');
+                     print('❌ Driver response body: ${driverResponse.body}');
 
-                  // If driver HTTP request fails, go to driver screen
-                  print(
-                      '🚗 Driver HTTP request failed, navigating to Routescreenfordriver');
+                     // If driver response fails, go to driver screen
+                     print(
+                         '🚗 Driver response failed, navigating to Routescreenfordriver');
 
-                  // Update driver field to true for driver
-                  await updateDriverField(true);
+                     // Update driver field to true for driver
+                     await updateDriverField(true);
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const Routescreenfordriver()),
-                  );
-                }
+                     Navigator.push(
+                       context,
+                       MaterialPageRoute(
+                           builder: (context) => const Routescreenfordriver()),
+                     );
+                   }
+                 } catch (e) {
+                   print('❌ Error in driver HTTP request: $e');
+
+                   // If driver HTTP request fails, go to driver screen
+                   print(
+                       '🚗 Driver HTTP request failed, navigating to Routescreenfordriver');
+
+                   // Update driver field to true for driver
+                   await updateDriverField(true);
+
+                   Navigator.push(
+                     context,
+                     MaterialPageRoute(
+                         builder: (context) => const Routescreenfordriver()),
+                   );
+                 }
               } else {
                 // Show dialog for non-driver users
                 showDialog(
@@ -922,7 +979,7 @@ class _LoginscreenState extends State<Loginscreen> {
                   builder: (BuildContext context) {
                     return AlertDialog(
                       title: Text('Access Denied'),
-                      content: Text('You are not a driver'),
+                      content: Text('You are a invalid User'),
                       actions: [
                         TextButton(
                           onPressed: () {
@@ -1001,8 +1058,19 @@ class _LoginscreenState extends State<Loginscreen> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Color(0xFF164AE9)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+       backgroundColor: Colors.white,
+       body: Stack(
         children: [
           // Subtle background overlay
           Container(

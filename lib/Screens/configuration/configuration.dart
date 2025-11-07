@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:production/Screens/Home/offline_callsheet_detail_screen.dart';
+import 'package:production/Screens/callsheet/callsheet_detail.dart';
 import 'package:production/variables.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
@@ -215,7 +215,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
               onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => OfflineCallsheetDetailScreen(
+                      builder: (_) => CallsheetDetailScreen(
                           callsheet: widget.callsheet))),
             ),
           ),
@@ -314,7 +314,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
                                         context,
                                         MaterialPageRoute(
                                             builder: (_) =>
-                                                OfflineCallsheetDetailScreen(
+                                                CallsheetDetailScreen(
                                                     callsheet:
                                                         widget.callsheet)));
                                   },

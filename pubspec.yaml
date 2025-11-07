@@ -34,7 +34,6 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  device_info_plus: ^11.5.0
   geolocator: ^13.0.3 
   geocoding: ^3.0.0 
   google_maps_flutter: 
@@ -52,10 +51,10 @@ dependencies:
   path: ^1.8.3
   workmanager: ^0.7.0
   get:
-  flutter_screenutil: ^5.9.3
-  responsive_builder: ^0.7.1
+  #flutter_screenutil: ^5.9.3
+  #responsive_builder: ^0.7.1
   image_picker: ^1.1.2
-  flutter_device_imei: ^0.0.4
+ # flutter_device_imei: ^0.0.4
   ota_update: ^7.0.2
   package_info_plus: ^8.3.1
 
@@ -71,7 +70,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
 
-  image_path: "assets/tenkrow.png"
+#  image_path: "assets/driver_union_logo.png"
+  image_path: "assets/cine agent.png"
   min_sdk_android: 21 # android min sdk min:16, default 2121
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -95,21 +95,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/tenkrow.png
-    - assets/
-    - assets/KathuvakulaRenduKadhal.png
-    - assets/backimage.png
-    - assets/HomeBackDropi.png
-    - assets/homemovie.png
-    - assets/1.jpg
-    - assets/2.jpg
-    - assets/4.jpg
-    - assets/3.jpg
     - assets/markattendance.png
-    - assets/intime1.png
-    - assets/intime2.png
-    - assets/sessionexpired.jpg
-    - assets/checkin members.png
-    - assets/checkedout members.png
+    - assets/
+
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

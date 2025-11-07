@@ -7,14 +7,14 @@ import 'package:sqflite/sqflite.dart';
 import 'package:production/sessionexpired.dart';
 import 'package:production/variables.dart';
 
-class Inchargereport extends StatefulWidget {
-  const Inchargereport({super.key});
+class Agenttripreport extends StatefulWidget {
+  const Agenttripreport({super.key});
 
   @override
-  State<Inchargereport> createState() => _InchargereportState();
+  State<Agenttripreport> createState() => _AgenttripreportState();
 }
 
-class _InchargereportState extends State<Inchargereport> {
+class _AgenttripreportState extends State<Agenttripreport> {
   List<Map<String, dynamic>> trips = [];
   bool isLoading = true; // State for loading indicator
 
@@ -29,7 +29,7 @@ class _InchargereportState extends State<Inchargereport> {
       final dbPath = await getDatabasesPath();
       final db = await openDatabase('${dbPath}/production_login.db');
       final List<Map<String, dynamic>> loginRows =
-          await db.query('login_data', orderBy: 'id ASC', limit: 1);
+      await db.query('login_data', orderBy: 'id ASC', limit: 1);
       if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
         setState(() {
           vsid = loginRows.first['vsid'].toString();
@@ -50,7 +50,7 @@ class _InchargereportState extends State<Inchargereport> {
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'VMETID':
-              'VLEkHaKT1r5ihTgJbuZy5vwbdtGYQJLle6wIMwDtxBpVjJ+vn9p017wnBS97W69vkLCn2d1blyRna1jSKdbR++uk/UWW4uVC4a1lVltIc1HczsDhM4KGgEaviZj+Bg+YLo3+3sweZbUGzppYGACaw5CZA8R4tVYFoJljffKEghP1ZyydO3v5MMb2pIzNLrKP+H6PklhbATik4btIKe73SSreUdJWxT3xUmNaak8gK8muLG5JDs7xZ4qLzCIwsIJL7sAR5L6Dcy2ZP52FXlDcaa02zuiyDtQYClkDejHdFcE3C6OlxNY3IzEcp80aY6nq9bVNPiGDZGWqyK4LfmrEZQ==',
+          'VLEkHaKT1r5ihTgJbuZy5vwbdtGYQJLle6wIMwDtxBpVjJ+vn9p017wnBS97W69vkLCn2d1blyRna1jSKdbR++uk/UWW4uVC4a1lVltIc1HczsDhM4KGgEaviZj+Bg+YLo3+3sweZbUGzppYGACaw5CZA8R4tVYFoJljffKEghP1ZyydO3v5MMb2pIzNLrKP+H6PklhbATik4btIKe73SSreUdJWxT3xUmNaak8gK8muLG5JDs7xZ4qLzCIwsIJL7sAR5L6Dcy2ZP52FXlDcaa02zuiyDtQYClkDejHdFcE3C6OlxNY3IzEcp80aY6nq9bVNPiGDZGWqyK4LfmrEZQ==',
           'VSID': vsid ?? "",
         },
         body: jsonEncode({"vmid": vmid, "statusid": 0}),
@@ -62,23 +62,52 @@ class _InchargereportState extends State<Inchargereport> {
 
       if (response.statusCode == 200) {
         print("✅ Trip Response: ${response.body}");
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        try {
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          final String status = data['status']?.toString() ?? '';
 
-        if (data['status'] == "200" && data['responseData'] != null) {
-          // Check mounted before calling setState
+          if (status == "200") {
+            final List<dynamic>? resp = data['responseData'] as List<dynamic>?;
+            final List<Map<String, dynamic>> parsedTrips = resp != null
+                ? List<Map<String, dynamic>>.from(resp.map((e) => Map<String, dynamic>.from(e as Map)))
+                : <Map<String, dynamic>>[];
+
+            if (mounted) {
+              setState(() {
+                trips = parsedTrips;
+                isLoading = false;
+              });
+            }
+          } else {
+            if (mounted) {
+              if (data['errordescription'] == "Session Expired") {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const Sessionexpired()));
+              }
+              setState(() {
+                trips = [];
+                isLoading = false;
+              });
+            }
+          }
+        } catch (e) {
+          print("Error decoding trip response: $e");
           if (mounted) {
             setState(() {
-              trips = List<Map<String, dynamic>>.from(data['responseData']);
+              trips = [];
               isLoading = false;
             });
           }
         }
       } else {
+        trips=[];
+        print("❌ Failed to load trips. Status code: ${response.statusCode}");
         try {
           Map error = jsonDecode(response.body);
           print(error);
 
-          // Check mounted before navigation and setState
           if (mounted) {
             if (error['errordescription'] == "Session Expired") {
               Navigator.push(
@@ -87,14 +116,15 @@ class _InchargereportState extends State<Inchargereport> {
                       builder: (context) => const Sessionexpired()));
             }
             setState(() {
+              trips = [];
               isLoading = false;
             });
           }
         } catch (e) {
           print("Error parsing error response: $e");
-          // Check mounted before final setState
           if (mounted) {
             setState(() {
+              trips = [];
               isLoading = false;
             });
           }
@@ -105,6 +135,7 @@ class _InchargereportState extends State<Inchargereport> {
       // Check mounted before error setState
       if (mounted) {
         setState(() {
+          trips = [];
           isLoading = false;
         });
       }
@@ -131,11 +162,13 @@ class _InchargereportState extends State<Inchargereport> {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             automaticallyImplyLeading: false,
+
             title: const Text(
-              "Incharge Trip Reports",
+              "Agent Trip Reports",
               style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
+
             backgroundColor: Colors.transparent,
             elevation: 0,
           ),
@@ -156,7 +189,7 @@ class _InchargereportState extends State<Inchargereport> {
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Color.fromRGBO(0, 0, 0, 0.08),
                               blurRadius: 6,
                               offset: Offset(0, 2),
                             ),
@@ -176,7 +209,7 @@ class _InchargereportState extends State<Inchargereport> {
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Color.fromRGBO(0, 0, 0, 0.08),
                               blurRadius: 6,
                               offset: Offset(0, 2),
                             ),
@@ -211,7 +244,7 @@ class _InchargereportState extends State<Inchargereport> {
                           Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
-                              "Trip List",
+                              "Trip Logs",
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -220,13 +253,13 @@ class _InchargereportState extends State<Inchargereport> {
                             ),
                           ),
                           ...trips.map((trip) => tripContainerBox(
-                                context,
-                                trip['tripid']?.toString() ?? "N/A",
-                                trip['driverName'] ?? "N/A",
-                                trip['tripdate']?.toString() ?? "N/A",
-                                trip['location'] ?? "N/A",
-                                trip['tripType'] ?? "N/A",
-                              )),
+                            context,
+                            trip['tripid']?.toString() ?? "N/A",
+                            trip['driverName'] ?? "N/A",
+                            trip['tripdate']?.toString() ?? "N/A",
+                            trip['location'] ?? "N/A",
+                            trip['tripType'] ?? "N/A",
+                          )),
                         ],
                       ],
                     ),
@@ -283,13 +316,13 @@ class _InchargereportState extends State<Inchargereport> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Color.fromRGBO(0, 0, 0, 0.1),
               blurRadius: 4,
               offset: Offset(0, 2),
             ),
           ],
           border: Border.all(
-            color: Colors.grey.withOpacity(0.2),
+            color: Color.fromRGBO(158, 158, 158, 0.2),
             width: 1,
           ),
         ),
@@ -304,8 +337,8 @@ class _InchargereportState extends State<Inchargereport> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF4A6FA5).withOpacity(0.1),
-                    Color(0xFF2E4B73).withOpacity(0.1),
+                    Color(0x1A4A6FA5),
+                    Color(0x1A2E4B73),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(8),
@@ -325,7 +358,12 @@ class _InchargereportState extends State<Inchargereport> {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getTripTypeColor(tripType).withOpacity(0.2),
+                      color: Color.fromRGBO(
+                        (_getTripTypeColor(tripType).r * 255).round(),
+                        (_getTripTypeColor(tripType).g * 255).round(),
+                        (_getTripTypeColor(tripType).b * 255).round(),
+                        0.2,
+                      ),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(

@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 
 import 'package:production/Screens/Home/MyHomescreen.dart';
+import 'package:production/Screens/Trip/agenttripreport.dart';
 
 import 'package:production/Screens/callsheet/callsheetforincharge.dart';
 
 import 'package:production/Screens/Trip/inchargereport.dart';
-import 'package:production/Screens/report/reportforcallsheet.dart';
 
 import 'package:production/variables.dart';
 
-class RoutescreenforIncharge extends StatefulWidget {
+class RoutescreenforAgent extends StatefulWidget {
   final int initialIndex;
 
-  const RoutescreenforIncharge(
+  const RoutescreenforAgent(
       {super.key, this.initialIndex = 0}); // Default to Home tab
 
   @override
-  State<RoutescreenforIncharge> createState() => _RoutescreenforInchargeState();
+  State<RoutescreenforAgent> createState() => _RoutescreenforAgentState();
 }
 
-class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
+class _RoutescreenforAgentState extends State<RoutescreenforAgent> {
   int _currentIndex = 0;
 
   @override
@@ -58,10 +58,6 @@ class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            label: 'Trip',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Callsheet',
           ),
@@ -87,18 +83,10 @@ class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
   Widget _getScreenWidget(int index) {
     switch (index) {
       case 0:
-        // return const MovieListScreen();
+      // return const MovieListScreen();
         return const MyHomescreen();
+
       case 1:
-        if (productionTypeId == 3) {
-          return (selectedProjectId != null && selectedProjectId != "0")
-              ? Inchargereport()
-              : const MyHomescreen();
-        } else {
-          // For productionTypeId == 2 or any other case
-          return Inchargereport();
-        }
-      case 2:
         if (productionTypeId == 3) {
           return (selectedProjectId != null && selectedProjectId != "0")
               ? Callsheetforincharge()
@@ -108,10 +96,10 @@ class _RoutescreenforInchargeState extends State<RoutescreenforIncharge> {
           return Callsheetforincharge();
         }
 
-      case 3:
-        return Reportforcallsheet();
-      // case 3:
-      //   return TripScreen();
+      case 2:
+        return Agenttripreport();
+    // case 3:
+    //   return TripScreen();
       default:
         return const MyHomescreen();
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:production/Screens/Route/RouteScreenforAgent.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/variables.dart';
@@ -49,13 +50,14 @@ class _SplashScreenState extends State<SplashScreen> {
           }
         } else {
           // vsid exists - decide route based on driver flag
+          // dart
+// Replace the navigation decision block inside _initializeSplashScreen()
+// (the portion after you compute isDriver)
+
           final dynamic driverFlag = loginData['driver'];
-          print('🔍 DEBUG: VSID exists: ${loginData['vsid']}');
-          print('🔍 DEBUG: Driver flag value: $driverFlag');
-          print('🔍 DEBUG: Driver flag type: ${driverFlag.runtimeType}');
+          final dynamic agentFlag = loginData['isAgentt'];
 
           bool isDriver = false;
-          // Accept several representations: int 1, bool true, string '1' or 'true'
           if (driverFlag is int && driverFlag == 1) {
             isDriver = true;
             print('🔍 DEBUG: Driver flag matched as int 1');
@@ -70,25 +72,45 @@ class _SplashScreenState extends State<SplashScreen> {
             print('🔍 DEBUG: Driver flag matched as string');
           }
 
-          print('🔍 DEBUG: Final isDriver value: $isDriver');
+          bool isAgent = false;
+          if (agentFlag is int && agentFlag == 1) {
+            isAgent = true;
+            print('🔍 DEBUG: Agent flag matched as int 1');
+          }
+          if (agentFlag is bool && agentFlag == true) {
+            isAgent = true;
+            print('🔍 DEBUG: Agent flag matched as bool true');
+          }
+          if (agentFlag is String &&
+              (agentFlag == '1' || agentFlag.toLowerCase() == 'true')) {
+            isAgent = true;
+            print('🔍 DEBUG: Agent flag matched as string');
+          }
+
+          print('🔍 DEBUG: Final isDriver=$isDriver, isAgent=$isAgent');
 
           if (mounted) {
             if (isDriver) {
               print('🚗 DEBUG: Navigating to Routescreenfordriver');
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const Routescreenfordriver()),
+                MaterialPageRoute(builder: (context) => const Routescreenfordriver()),
+              );
+            } else if (isAgent) {
+              print('👔 DEBUG: Navigating to RoutescreenforAgent');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const RoutescreenforAgent()),
               );
             } else {
               print('👔 DEBUG: Navigating to RoutescreenforIncharge');
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const RoutescreenforIncharge()),
+                MaterialPageRoute(builder: (context) => const RoutescreenforIncharge()),
               );
             }
           }
+
         }
       } else {
         // No login data found, navigate to login screen
@@ -158,11 +180,12 @@ class _SplashScreenState extends State<SplashScreen> {
     registeredMovie = loginData['registered_movie'];
     projectId = loginData['project_id'];
     productionTypeId = loginData['production_type_id'] ?? 0;
-    productionHouse = loginData['production_house'];
-    vmid = loginData['vmid'];
+    productionHouse = loginData['production_house']??' ';
+    vmid = loginData['vmid']??0;
 
     // Convert driver field from int to bool (database stores as int, variable expects bool)
     final driverValue = loginData['driver'];
+    final agentValue = loginData['isAgentt'];
     if (driverValue is int) {
       driver = driverValue == 1;
     } else if (driverValue is bool) {

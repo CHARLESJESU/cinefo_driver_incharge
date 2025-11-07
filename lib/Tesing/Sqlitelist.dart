@@ -670,6 +670,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     item['registered_movie']),
                                                 _buildDetailRow('Mobile Number',
                                                     item['mobile_number']),
+                                      _buildDetailRow('Designation',
+                                          item['subUnitName']),
                                                 _buildDetailRow('Password',
                                                     item['password']),
                                                 _buildDetailRow('Project ID',

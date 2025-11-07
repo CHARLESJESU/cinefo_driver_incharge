@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
+import '../../ApiCalls/apicall.dart';
+import '../../variables.dart';
+
 class Otpscreen extends StatefulWidget {
-  const Otpscreen({super.key});
+  final int tripid;
+  const Otpscreen({Key? key, required this.tripid}) : super(key: key);
 
   @override
   State<Otpscreen> createState() => _OtpscreenState();
@@ -71,7 +75,7 @@ class _OtpscreenState extends State<Otpscreen> {
     );
   }
 
-  void _validateOtp() {
+  void _validateOtp() async{
     String otp = otpControllers.map((controller) => controller.text).join();
 
     if (otp.length != 6) {
@@ -91,11 +95,11 @@ class _OtpscreenState extends State<Otpscreen> {
     });
 
     // Simulate API call delay
-    Future.delayed(Duration(seconds: 2), () {
+    Future.delayed(Duration(seconds: 2), () async {
       setState(() {
         _isLoading = false;
       });
-
+      await otpupdateapi( otp: otp, tripid: widget.tripid, vsid: vsid??"0"); // Call the OTP update API
       // Show validation result (you can replace this with actual validation logic)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

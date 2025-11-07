@@ -110,6 +110,7 @@ class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
                             });
                           },
                           currentVcid.toString(),
+
                           '2', // Out-time attendance status
                         );
                         // await handleVCID(provider.vcid.toString());

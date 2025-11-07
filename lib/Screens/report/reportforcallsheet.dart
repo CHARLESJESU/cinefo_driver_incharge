@@ -1,23 +1,24 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:production/Screens/report/callsheetmembers.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import '../../ApiCalls/apicall.dart' as apicalls;
-import 'callsheet_detail.dart';
+import '../callsheet/callsheet_detail.dart';
 
-class Callsheetforincharge extends StatefulWidget {
-  const Callsheetforincharge({super.key});
+class Reportforcallsheet extends StatefulWidget {
+  const Reportforcallsheet({super.key});
 
   @override
-  State<Callsheetforincharge> createState() => _CallsheetforinchargeState();
+  State<Reportforcallsheet> createState() => _ReportforcallsheeteState();
 }
 
-class _CallsheetforinchargeState extends State<Callsheetforincharge> {
+class _ReportforcallsheeteState extends State<Reportforcallsheet> {
   Database? _database;
   Map<String, dynamic>? logindata;
   bool _isLoading = false;
   List<Map<String, dynamic>> callSheetData = [];
-
+  String global_projectidString = " ";
   @override
   void initState() {
     super.initState();
@@ -100,8 +101,8 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
 
       print(
           '🔄 Converting project_id: $projectidValue (${projectidValue.runtimeType}) → $projectidInt');
-
-      final result = await apicalls.lookupcallsheetnotforattendenceapi(
+      global_projectidString = projectidInt.toString();
+      final result = await apicalls.lookupcallsheetapi(
         projectid: projectidInt,
         vsid: logindata!['vsid'] ?? '',
       );
@@ -131,7 +132,7 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
           response['responseData'] is List) {
         setState(() {
           callSheetData =
-              List<Map<String, dynamic>>.from(response['responseData']);
+          List<Map<String, dynamic>>.from(response['responseData']);
         });
         print('📋 Parsed ${callSheetData.length} callsheet records');
       }
@@ -188,9 +189,9 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
           appBar: AppBar(
             automaticallyImplyLeading: false,
             title: const Text(
-              "Call Sheets",
+              "Call Sheets Report",
               style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -267,7 +268,7 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
-                              "Call Sheets List",
+                              "Report List",
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -309,7 +310,7 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CallsheetDetailScreen(callsheet: callSheet),
+            builder: (_) => Callsheetmembers(projectId: global_projectidString,maincallsheetid: callSheetId,isOffline: false),
           ),
         );
       },
@@ -362,7 +363,7 @@ class _CallsheetforinchargeState extends State<Callsheetforincharge> {
                   ),
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getStatusColor(status).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),

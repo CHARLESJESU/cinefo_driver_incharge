@@ -128,8 +128,7 @@ class CallsheetDetailScreen extends StatelessWidget {
             Icons.arrow_back,
             color: Colors.white,
           ),
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => RoutescreenforIncharge())),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       backgroundColor: const Color.fromRGBO(247, 244, 244, 1),
@@ -297,7 +296,7 @@ class CallsheetDetailScreen extends StatelessWidget {
                                 Builder(
                                   builder: (context) {
                                     final loc = location ?? 'Unknown';
-                                    double fontSize = 12;
+                                    double fontSize = 10;
                                     if (loc.length > 40) {
                                       fontSize = 9;
                                     }
@@ -418,84 +417,7 @@ class CallsheetDetailScreen extends StatelessWidget {
                               enabled: true,
                             ),
                           ),
-                          if (productionTypeId != 3)
-                            GestureDetector(
-                              onTap: () {
-                                if (passProjectidresponse?[
-                                        'errordescription'] !=
-                                    "No Record found") {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => ConfigurationScreen(
-                                              callsheet: callsheet,
-                                              callsheetid:
-                                                  callsheet['callSheetId'] ??
-                                                      0)));
-                                }
-                              },
-                              child: _actionButton(
-                                "Config",
-                                Icons.settings,
-                                AppColors.primaryLight,
-                                enabled: true,
-                              ),
-                            ),
                         ],
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    // Close callsheet button with date-based enable/disable
-                    Opacity(
-                      opacity: enableCloseButton ? 1.0 : 0.5,
-                      child: GestureDetector(
-                        onTap: enableCloseButton
-                            ? () {
-                                // Update the callsheet status and pop if successful
-                                if (id != null) {
-                                  _updateCallsheetStatus(id, context);
-                                }
-                              }
-                            : null, // Disable tap for future dates
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(vertical: 15),
-                          decoration: BoxDecoration(
-                            color: enableCloseButton
-                                ? Colors.red.withOpacity(0.1)
-                                : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: enableCloseButton
-                                  ? Colors.red.withOpacity(0.3)
-                                  : Colors.grey.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.close,
-                                color: enableCloseButton
-                                    ? Colors.red
-                                    : Colors.grey,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                "Pack Up",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: enableCloseButton
-                                      ? Colors.red
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ),
                   ],

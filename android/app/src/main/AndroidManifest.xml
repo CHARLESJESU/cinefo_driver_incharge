@@ -15,7 +15,7 @@
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/> 
 <uses-feature android:name="android.hardware.nfc.hce" android:required="false"/>
     <application
-        android:label="Cinefo Production"
+        android:label="Cinefo Agent"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

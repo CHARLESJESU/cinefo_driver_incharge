@@ -38,11 +38,43 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
   void initState() {
     super.initState();
     _initializeData();
+    // Also kick off a refresh to ensure UI is up-to-date after init.
+    // We don't await here because initState cannot be async.
+    _refreshPage();
   }
 
   Future<void> _initializeData() async {
     await _fetchLoginAndCallsheetData();
     await _Drivertripdetails();
+  }
+
+  // Public refresh helper: re-fetch login data and trips and update UI.
+  // This is used after init and after updating trip status so the UI
+  // reflects the latest backend state.
+  Future<void> _refreshPage() async {
+    try {
+      if (!mounted) return;
+      // Optionally show loading state
+      setState(() {
+        _isLoadingTrips = true;
+      });
+
+      await _fetchLoginAndCallsheetData();
+      await _Drivertripdetails();
+
+      if (!mounted) return;
+      setState(() {
+        _isLoadingTrips = false;
+      });
+      print('✅ Page refresh completed');
+    } catch (e) {
+      print('❌ Error during page refresh: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingTrips = false;
+        });
+      }
+    }
   }
 
   Future<void> _Drivertripdetails() async {
@@ -51,7 +83,7 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
     setState(() {
       _isLoadingTrips = true;
     });
-
+final payload={"vmid": vmid, "statusid": 1};
     try {
       final response = await http.post(
         processSessionRequest,
@@ -61,11 +93,12 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
               'fWT+AmFtvfK9fjLYmJYL5Ca6co0oZ437saTMHvDaLc7xynuSH4QaJ1Eh63nWSAPxJ5dJEJjwwsWXV0eeBjCiy0jcfjFO7X+E2kgDeMeukCjobCBmlSBPo9eWr/M9kKyqhmJnkeEo1S0OHK+a3yTyMZBA7YGF1XvGnFK6OoBPl1aKJTicvjWH7bVMXfQZr265UGVES27B5mIDFtNgziq6uHoXdd2nBCY2UqdPT3+W+r2clpdj1LTty7SI/CCU/Cf1gJmtAMZQot7YiBqD6ijaXvTwKdrxoZ7rqZkmliRhLMkM8Kgth8LGXmXPZJQYMxGVaQ2DAQTmhP5FSOzcejE1yA==',
           'VSID': vsid ?? "",
         },
-        body: jsonEncode({"vmid": vmid, "statusid": 1}),
+        body: jsonEncode(payload),
       );
 
       print('🔍 DRIVER TRIP DETAILS RESPONSE: ${response.statusCode}');
       print('🔍 DRIVER TRIP DETAILS RESPONSE: ${response.body}');
+      print('🔍 DRIVER TRIP DETAILS RESPONSE: ${payload}');
 
       if (!mounted) return;
 
@@ -275,6 +308,29 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
     final int tripId = trip['tripid'] ?? 0;
     final bool isExpanded = _expandedTripIds.contains(tripId);
 
+    // Map tripstatusid to a display label and color. If tripstatusid
+    // is not present, fall back to tripType string and existing color logic.
+    final dynamic statusRaw = trip['tripstatusid'];
+    final int? statusId = statusRaw is int
+        ? statusRaw
+        : (statusRaw is String ? int.tryParse(statusRaw) : null);
+    final String statusLabel = statusId == 1
+        ? 'Assigned'
+        : statusId == 2
+            ? 'Arrived'
+            : 'N/A';
+    final Color statusColor = statusId == 1
+        ? Colors.orange
+        : statusId == 2
+            ? Colors.green
+            : _getTripTypeColor('');
+
+    // Decide button action label based on statusId. Compute this here
+    // (outside of the widget tree) to avoid syntax errors.
+    final String actionLabel = (statusId == 1)
+        ? 'Arrived'
+        : (statusId == 2 ? 'Start' : 'Arrived');
+
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -316,16 +372,15 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                         padding:
                             EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _getTripTypeColor(trip['tripType'] ?? '')
-                              .withOpacity(0.2),
+                          color: statusColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          trip['tripType'] ?? 'N/A',
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _getTripTypeColor(trip['tripType'] ?? ''),
+                            color: statusColor,
                           ),
                         ),
                       ),
@@ -387,12 +442,24 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                   ),
                   SizedBox(height: 12),
 
-                  // Arrived Button
+                  // Action Button - label depends on trip status
                   SizedBox(
                     width: double.infinity,
                     height: 40,
                     child: ElevatedButton(
-                      onPressed: () => _handleArrivedButton(trip),
+                      onPressed: () {
+                        // If the button label is 'Start', navigate to OTP screen
+                        if (actionLabel.toLowerCase() == 'start') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => Otpscreen(tripid: tripId)),
+                          );
+                        } else {
+                          // Otherwise perform the existing arrived/update action
+                          _handleArrivedButton(trip);
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF2B5682),
                         foregroundColor: Colors.white,
@@ -407,7 +474,7 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                           Icon(Icons.check_circle, size: 18),
                           SizedBox(width: 8),
                           Text(
-                            'Arrived',
+                            actionLabel,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -554,17 +621,31 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
         },
       );
 
-      // Call the API
-      final result = await tripstatusapi(
-        tripid: trip['tripid'] ?? 0,
-        latitude: trip['latitude']?.toString() ?? '',
-        longitude: trip['longtitude']?.toString() ?? '',
-        location: trip['location']?.toString() ?? '',
-        tripStatus: trip['tripstatus']?.toString() ?? '',
-        tripStatusid: trip['tripstatusid'] ??
-            0, // Assuming 2 is the status ID for "Arrived"
-        vsid: vsid ?? '',
-      );
+    // Build payload for trip status update.
+    // Some APIs/name variations use different keys for trip type id, so
+    // check several possibilities and accept both int and string values.
+    final dynamic tripTypeIdRaw = trip['tripTypeId'] ?? trip['tripttypeid'] ?? trip['tripttypeId'] ?? trip['triptypeid'];
+    final int? tripTypeId = tripTypeIdRaw is int
+        ? tripTypeIdRaw
+        : (tripTypeIdRaw is String ? int.tryParse(tripTypeIdRaw) : null);
+
+    // Base payload fields
+    final Map<String, dynamic> payload = {
+      "tripid": trip['tripid'] ?? 0,
+      "latitude": trip['latitude']?.toString() ?? '',
+      "longitude": trip['longtitude']?.toString() ?? '',
+      "location": trip['location']?.toString() ?? '',
+    };
+
+    // If tripTypeId == 1 (pickup) we mark Arrived (statusId 2), else End trip
+    if (tripTypeId == 1) {
+      payload.addAll({"tripStatus": "Arrived", "tripStatusid": 2});
+    } else {
+      payload.addAll({"tripStatus": "End trip", "tripStatusid": 4});
+    }
+
+    // Call API using named parameters (matches apicall.tripupdatedstatusapi signature)
+    final result = await tripupdatedstatusapi(payload: payload, vsid: vsid ?? '');
 
       // Close loading dialog
       if (mounted) {
@@ -581,8 +662,8 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
               duration: Duration(seconds: 3),
             ),
           );
-          // Refresh the trips list
-          await _Drivertripdetails();
+          // Refresh the page (login & trips) so UI reflects latest state
+          await _refreshPage();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -610,6 +691,7 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
         );
       }
     }
+    // massa
   }
 
   @override
@@ -724,8 +806,6 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                       ); // Close drawer first
                     },
                   ),
-
-                  // White separator line
                   Divider(
                     color: Colors.white.withOpacity(0.3),
                     thickness: 1,
@@ -768,38 +848,6 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                       size: 24,
                     ),
                     title: Text(
-                      'Otpscreen',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Close drawer first
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Otpscreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  Divider(
-                    color: Colors.white.withOpacity(0.3),
-                    thickness: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
-
-                  // Logout
-                  ListTile(
-                    leading: Icon(
-                      Icons.output,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    title: Text(
                       'NFC CARD UID',
                       style: TextStyle(
                         color: Colors.white,
@@ -816,34 +864,6 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
                         ),
                       );
                     },
-                  ),
-                  Divider(
-                    color: Colors.white.withOpacity(0.3),
-                    thickness: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.devices,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    title: Text(
-                      'Device ID',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _deviceId ?? 'Loading...',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
                   ),
                   Divider(
                     color: Colors.white.withOpacity(0.3),

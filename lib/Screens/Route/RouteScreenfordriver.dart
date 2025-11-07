@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:production/Screens/Home/Homescreen.dart';
+
 import 'package:production/Screens/Home/MyHomescreen.dart';
 import 'package:production/Screens/Home/driverhomescreen.dart';
-import 'package:production/Screens/callsheet/callsheet.dart';
-import 'package:production/Screens/report/Reports.dart';
+import 'package:production/Screens/report/DriverReport.dart';
+
+import 'package:production/Screens/report/InchargeReports.dart';
 import 'package:production/variables.dart';
 
 class Routescreenfordriver extends StatefulWidget {
@@ -101,14 +102,11 @@ class _RoutescreenfordriverState extends State<Routescreenfordriver> {
       //   }
 
       case 1:
-        return Reports(
-          projectId: projectid.toString(),
-          callsheetid: callsheetid.toString(),
-        );
+        return Driverreport();
       // case 3:
       //   return TripScreen();
       default:
-        return const MovieListScreen();
+        return const MyHomescreen();
     }
   }
 }

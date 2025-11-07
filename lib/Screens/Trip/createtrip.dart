@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:production/Screens/Home/MyHomescreen.dart';
+import 'package:production/Screens/Route/RouteScreenforincharge.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/Screens/Home/colorcode.dart';
@@ -1002,6 +1004,14 @@ class _CreatetripState extends State<Createtrip> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (context) => RoutescreenforIncharge(),
+          )),
+          tooltip: 'Back',
+        ),
         title: const Text(
           'Create Trip',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -1152,6 +1162,41 @@ class _CreatetripState extends State<Createtrip> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
+                                if (tripType == 'Drop') ...[
+                                  const Text('Drop Date',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: _selectPickupDate,
+                                    child: AbsorbPointer(
+                                      child: TextFormField(
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(
+                                              borderRadius:
+                                              BorderRadius.circular(8)),
+                                          contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8),
+                                          hintText: 'Select Date',
+                                          suffixIcon:
+                                          Icon(Icons.calendar_today),
+                                        ),
+                                        controller: TextEditingController(
+                                          text: selectedPickupDate == null
+                                              ? ''
+                                              : "${selectedPickupDate!.day}/${selectedPickupDate!.month}/${selectedPickupDate!.year}",
+                                        ),
+                                        readOnly: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+],
                                   if (tripType == 'Pick Up') ...[
                                     const Text('Pick Up Date',
                                         style: TextStyle(
@@ -1186,6 +1231,7 @@ class _CreatetripState extends State<Createtrip> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
+
                                     const Text('Pick Up Time',
                                         style: TextStyle(
                                             color: Colors.white,

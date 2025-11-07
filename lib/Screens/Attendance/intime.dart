@@ -104,6 +104,7 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
                             });
                           },
                           currentVcid.toString(),
+
                           '1', // In-time attendance status
                         );
                         // await handleVCID(provider.vcid.toString());
