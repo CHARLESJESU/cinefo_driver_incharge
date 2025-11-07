@@ -20,12 +20,13 @@ String transformVcidToImageUrl(String vcid) {
 }
 
 void showResultDialogi(
-  BuildContext context,
-  String message,
-  VoidCallback onDismissed,
-  String vcid,
-  String attendanceStatus,
-) {
+    BuildContext context,
+    String message,
+    VoidCallback onDismissed,
+    String vcid,
+    String rfid,
+    String attendanceStatus,
+    ) {
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -34,6 +35,7 @@ void showResultDialogi(
         message: message,
         onDismissed: onDismissed,
         vcid: vcid,
+        rfid: rfid,
         attendanceStatus: attendanceStatus,
       );
     },
@@ -44,6 +46,7 @@ class _CountdownDialog extends StatefulWidget {
   final String message;
   final VoidCallback onDismissed;
   final String vcid;
+  final String rfid;
   final String attendanceStatus;
 
   const _CountdownDialog({
@@ -51,6 +54,7 @@ class _CountdownDialog extends StatefulWidget {
     required this.message,
     required this.onDismissed,
     required this.vcid,
+    required this.rfid,
     required this.attendanceStatus,
   }) : super(key: key);
 
@@ -68,13 +72,14 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       print('DEBUG: Database opened successfully');
 
       // Drop the old table if it exists to ensure schema is correct
-      // await db.execute('DROP TABLE IF EXISTS intime');
+      await db.execute('DROP TABLE IF EXISTS intime');
 
       await db.execute('''
         CREATE TABLE IF NOT EXISTS intime (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
           designation TEXT,
+          rfid TEXT,
           code TEXT,
           unionName TEXT,
           vcid TEXT,
@@ -97,7 +102,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       // IMPORTANT: do NOT close the database here. The app uses a shared
       // SQLite connection in multiple places (for example the background
       // IntimeSyncService). Closing the database here can close the shared
-      // connection unexpectedly and cause `DatabaseException(error database_closed)`
+      // connection unexpectedly and cause DatabaseException(error database_closed)
       // elsewhere. Let the caller or the app lifecycle manage closing.
       // await db.close();
       print('DEBUG: Leaving database open (caller/app manages lifecycle)');
@@ -167,14 +172,14 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
+      await placemarkFromCoordinates(position.latitude, position.longitude);
       Placemark place = placemarks[0];
 
       setState(() {
         latitude = position.latitude.toString();
         longitude = position.longitude.toString();
         location =
-            "${place.name}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
+        "${place.name}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
       });
       updateDebugMessage("Location fetched: $location");
     } catch (e) {
@@ -197,7 +202,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
 
       // IMPORTANT: do NOT close the shared DB here for the same reason as above.
       // Closing this connection while other parts of the app (e.g., the sync
-      // service) hold a reference can trigger `database_closed` exceptions.
+      // service) hold a reference can trigger database_closed exceptions.
       // await db.close();
       return existingRecords.isNotEmpty;
     } catch (e) {
@@ -270,7 +275,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
               position.latitude, position.longitude);
           Placemark place = placemarks[0];
           loc =
-              "${place.name}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
+          "${place.name}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
           print(
               'DEBUG: Location fetched - Lat: $lat, Lon: $lon, Location: $loc');
         } catch (e) {
@@ -288,6 +293,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       Map<String, dynamic> intimeData = {
         'name': name,
         'designation': designation,
+        'rfid': widget.rfid,
         'code': code,
         'unionName': unionName,
         'vcid': vcid,
@@ -299,7 +305,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
         'callsheetid': callsheetid,
         'mode': isoffline ? 'offline' : 'online',
         'attendanceDate':
-            "${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().year}",
+        "${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().year}",
         'attendanceTime': DateTime.now().toString().split(' ')[1].split('.')[0],
       };
       print('DEBUG: Intime data created: $intimeData');
@@ -353,15 +359,15 @@ class _CountdownDialogState extends State<_CountdownDialog> {
             ClipOval(
               child: widget.vcid.isNotEmpty
                   ? Image.network(
-                      imageUrl,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.person,
-                            size: 60, color: Colors.grey);
-                      },
-                    )
+                imageUrl,
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.person,
+                      size: 60, color: Colors.grey);
+                },
+              )
                   : const Icon(Icons.person, size: 60, color: Colors.grey),
             ),
           const SizedBox(height: 10),
@@ -382,7 +388,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
                   style: TextStyle(
                     color: isAlreadyMarked ? Colors.orange : Colors.black,
                     fontWeight:
-                        isAlreadyMarked ? FontWeight.bold : FontWeight.normal,
+                    isAlreadyMarked ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
@@ -417,25 +423,26 @@ class IntimeSyncService {
 
   Future<void> _tryPostIntimeRows() async {
     // await processAllOfflineCallSheets();
-      print('IntimeSyncService: Timer fired, checking for rows...');
-      if (_isPosting) return;
-      _isPosting = true;
-      Database? db;
-      try {
-        var connectivityResult = await Connectivity().checkConnectivity();
-        print('IntimeSyncService: Connectivity: $connectivityResult');
-        if (connectivityResult == ConnectivityResult.none) {
-          print('IntimeSyncService: No internet, skipping this cycle.');
-          _isPosting = false;
-          return;
-        }
-        final dbPath = await getDatabasesPath();
-        db = await openDatabase(path.join(dbPath, 'production_login.db'));
-        await db.execute('''
+    print('IntimeSyncService: Timer fired, checking for rows...');
+    if (_isPosting) return;
+    _isPosting = true;
+    Database? db;
+    try {
+      var connectivityResult = await Connectivity().checkConnectivity();
+      print('IntimeSyncService: Connectivity: $connectivityResult');
+      if (connectivityResult == ConnectivityResult.none) {
+        print('IntimeSyncService: No internet, skipping this cycle.');
+        _isPosting = false;
+        return;
+      }
+      final dbPath = await getDatabasesPath();
+      db = await openDatabase(path.join(dbPath, 'production_login.db'));
+      await db.execute('''
         CREATE TABLE IF NOT EXISTS intime (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
           designation TEXT,
+          rfid TEXT,
           code TEXT,
           unionName TEXT,
           vcid TEXT,
@@ -451,125 +458,126 @@ class IntimeSyncService {
         )
       ''');
 
-        final List<Map<String, dynamic>> rows = await db.query(
-          'intime',
-          where: 'mode = ?',
-          whereArgs: ['offline'],
-          orderBy: 'id ASC', // FIFO
+      final List<Map<String, dynamic>> rows = await db.query(
+        'intime',
+        where: 'mode = ?',
+        whereArgs: ['offline'],
+        orderBy: 'id ASC', // FIFO
+      );
+      await fetchloginDataFromSqlite();
+      print('IntimeSyncService: Found \\${rows.length} online rows to sync.');
+      for (final row in rows) {
+        print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
+        final requestBody = jsonEncode({
+          "data": row['vcid'],
+          "callsheetid": row['callsheetid'],
+          "projectid": projectId,
+          "productionTypeId": productionTypeId,
+          "rfid": row['rfid'],
+          "doubing": {},
+          "latitude": row['latitude'],
+          "longitude": row['longitude'],
+          "attendanceStatus": row['attendance_status'],
+          "location": row['location'],
+          "attendanceDate": row['attendanceDate'],
+          "attendanceTime": row['attendanceTime'],
+        });
+        // Get VSID from loginresponsebody or fallback to SQLite
+        String? vsid = loginresponsebody?['vsid']?.toString();
+        if (vsid == null || vsid.isEmpty) {
+          try {
+            final dbPath = await getDatabasesPath();
+            final db =
+            await openDatabase(path.join(dbPath, 'production_login.db'));
+            final List<Map<String, dynamic>> loginRows =
+            await db.query('login_data', orderBy: 'id ASC', limit: 1);
+            if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
+              vsid = loginRows.first['vsid'].toString();
+            }
+            await db.close();
+          } catch (e) {
+            print('Error fetching vsid from SQLite: $e');
+          }
+        }
+        print("📊📊📊📊📊📊📊📊📊📊 VSID: $vsid");
+        print("📊📊📊📊📊📊📊📊📊📊 Request Body: $processSessionRequest");
+        final response = await http.post(
+          processSessionRequest,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'VMETID':
+            "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
+            'VSID': vsid ?? "",
+          },
+          body: requestBody,
         );
-        await fetchloginDataFromSqlite();
-        print('IntimeSyncService: Found \\${rows.length} online rows to sync.');
-        for (final row in rows) {
-          print('IntimeSyncService: Attempting to POST row id=\\${row['id']}');
-          final requestBody = jsonEncode({
-            "data": row['vcid'],
-            "callsheetid": row['callsheetid'],
-            "projectid": projectId,
-            "productionTypeId": productionTypeId,
-            "doubing": {},
-            "latitude": row['latitude'],
-            "longitude": row['longitude'],
-            "attendanceStatus": row['attendance_status'],
-            "location": row['location'],
-            "attendanceDate": row['attendanceDate'],
-            "attendanceTime": row['attendanceTime'],
-          });
-          // Get VSID from loginresponsebody or fallback to SQLite
-          String? vsid = loginresponsebody?['vsid']?.toString();
-          if (vsid == null || vsid.isEmpty) {
-            try {
-              final dbPath = await getDatabasesPath();
-              final db =
-                  await openDatabase(path.join(dbPath, 'production_login.db'));
-              final List<Map<String, dynamic>> loginRows =
-                  await db.query('login_data', orderBy: 'id ASC', limit: 1);
-              if (loginRows.isNotEmpty && loginRows.first['vsid'] != null) {
-                vsid = loginRows.first['vsid'].toString();
-              }
-              await db.close();
-            } catch (e) {
-              print('Error fetching vsid from SQLite: $e');
-            }
+        print(
+            'IntimeSyncService: Sending POST request with body: $requestBody');
+        // Print response body in chunks to handle large responses
+        print('📊 Response body length: ${response.body.length}');
+        if (response.body.isNotEmpty) {
+          const int chunkSize = 800; // Print in chunks of 800 characters
+          for (int i = 0; i < response.body.length; i += chunkSize) {
+            int end = (i + chunkSize < response.body.length)
+                ? i + chunkSize
+                : response.body.length;
+            print(
+                '📊 Chunk ${(i / chunkSize).floor() + 1}: ${response.body.substring(i, end)}');
           }
-          print("📊📊📊📊📊📊📊📊📊📊 VSID: $vsid");
-          print("📊📊📊📊📊📊📊📊📊📊 Request Body: $processSessionRequest");
-          final response = await http.post(
-            processSessionRequest,
-            headers: {
-              'Content-Type': 'application/json; charset=UTF-8',
-              'VMETID':
-                  "ZRaYT9Da/Sv4QuuHfhiVvjCkg5cM5eCUEIN/w8pmJuIB0U/tbjZYxO4ShGIQEr4e5w2lwTSWArgTUc1AcaU/Qi9CxL6bi18tfj5+SWs+Sc9TV/1EMOoJJ2wxvTyRIl7+F5Tz7ELXkSdETOQCcZNaGTYKy/FGJRYVs3pMrLlUV59gCnYOiQEzKObo8Iz0sYajyJld+/ZXeT2dPStZbTR4N6M1qbWvS478EsPahC7vnrS0ZV5gEz8CYkFS959F2IpSTmEF9N/OTneYOETkyFl1BJhWJOknYZTlwL7Hrrl9HYO12FlDRgNUuWCJCepFG+Rmy8VMZTZ0OBNpewjhDjJAuQ==",
-              'VSID': vsid ?? "",
-            },
-            body: requestBody,
-          );
+        } else {
+          print('📊 Response body is empty');
+        }
+
+        print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
+        if (response.statusCode == 200 || response.statusCode == 1017 || response.statusCode == 1021 ||response.statusCode == 1023 ||response.statusCode == 1019 ||response.statusCode == 1016 ||response.statusCode == 3002 ||response.statusCode == 1022 ||response.statusCode == 1027 ||response.statusCode == 1018) {
           print(
-              'IntimeSyncService: Sending POST request with body: $requestBody');
-          // Print response body in chunks to handle large responses
-          print('📊 Response body length: ${response.body.length}');
-          if (response.body.isNotEmpty) {
-            const int chunkSize = 800; // Print in chunks of 800 characters
-            for (int i = 0; i < response.body.length; i += chunkSize) {
-              int end = (i + chunkSize < response.body.length)
-                  ? i + chunkSize
-                  : response.body.length;
-              print(
-                  '📊 Chunk ${(i / chunkSize).floor() + 1}: ${response.body.substring(i, end)}');
+              "IntimeSyncService: Deleting row id=${row['id']} after successful POST.");
+          try {
+            // Ensure db is open before attempting delete
+            if (db == null || !db.isOpen) {
+              print('IntimeSyncService: DB closed, reopening before delete');
+              db = await openDatabase(path.join(dbPath, 'production_login.db'));
             }
-          } else {
-            print('📊 Response body is empty');
-          }
 
-          print('IntimeSyncService: POST statusCode=\\${response.statusCode}');
-          if (response.statusCode == 200 || response.statusCode == 1017 || response.statusCode == 1021 ||response.statusCode == 1023 ||response.statusCode == 1019 ||response.statusCode == 1016 ||response.statusCode == 3002 ||response.statusCode == 1022 ||response.statusCode == 1027 ||response.statusCode == 1018) {
-            print(
-                "IntimeSyncService: Deleting row id=${row['id']} after successful POST.");
-            try {
-              // Ensure db is open before attempting delete
-              if (db == null || !db.isOpen) {
-                print('IntimeSyncService: DB closed, reopening before delete');
-                db = await openDatabase(path.join(dbPath, 'production_login.db'));
-              }
-
-              await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
-              print('✅ Successfully deleted row id=${row['id']}');
-            } catch (e) {
-              print('❌ Error deleting record: $e');
-              // Retry once if database was closed unexpectedly
-              if (e.toString().contains('database_closed')) {
-                try {
-                  print('IntimeSyncService: Retry delete - reopening DB and retrying');
-                  final Database reopenedDb = await openDatabase(path.join(dbPath, 'production_login.db'));
-                  await reopenedDb.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
-                  print('✅ Successfully deleted row id=${row['id']} after reopening DB');
-                  // make sure the local db reference points to this reopened instance so finally will close it
-                  db = reopenedDb;
-                } catch (e2) {
-                  print('❌ Retry delete failed: $e2');
-                }
+            await db.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+            print('✅ Successfully deleted row id=${row['id']}');
+          } catch (e) {
+            print('❌ Error deleting record: $e');
+            // Retry once if database was closed unexpectedly
+            if (e.toString().contains('database_closed')) {
+              try {
+                print('IntimeSyncService: Retry delete - reopening DB and retrying');
+                final Database reopenedDb = await openDatabase(path.join(dbPath, 'production_login.db'));
+                await reopenedDb.delete('intime', where: 'id = ?', whereArgs: [row['id']]);
+                print('✅ Successfully deleted row id=${row['id']} after reopening DB');
+                // make sure the local db reference points to this reopened instance so finally will close it
+                db = reopenedDb;
+              } catch (e2) {
+                print('❌ Retry delete failed: $e2');
               }
             }
-          } else if (response.statusCode == -1 ||
-              response.statusCode == 400 ||
-              response.statusCode == 500) {
-            print(
-                "IntimeSyncService: Skipping row id=${row['id']} due to statusCode=${response.statusCode}. Data not deleted.");
-            // Skip this row, do not delete, continue to next row
-            continue;
-          } else {
-            print(
-                "IntimeSyncService: POST failed for row id=${row['id']}, stopping sync this cycle.");
-            // Stop on first failure to preserve FIFO
-            break;
           }
+        } else if (response.statusCode == -1 ||
+            response.statusCode == 400 ||
+            response.statusCode == 500) {
+          print(
+              "IntimeSyncService: Skipping row id=${row['id']} due to statusCode=${response.statusCode}. Data not deleted.");
+          // Skip this row, do not delete, continue to next row
+          continue;
+        } else {
+          print(
+              "IntimeSyncService: POST failed for row id=${row['id']}, stopping sync this cycle.");
+          // Stop on first failure to preserve FIFO
+          break;
         }
-      } catch (e) {
-        print('Sync error: $e');
-      } finally {
-        if (db != null && db.isOpen) {
-          await db.close();
-        }
-        _isPosting = false;
       }
+    } catch (e) {
+      print('Sync error: $e');
+    } finally {
+      if (db != null && db.isOpen) {
+        await db.close();
+      }
+      _isPosting = false;
+    }
   }
 }

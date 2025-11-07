@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
@@ -21,6 +22,7 @@ class NFCNotifier extends ChangeNotifier {
   void clearNfcData() {
     _message = "";
     _vcid = null;
+    _rfid = null;
     safeNotifyListeners();
   }
 
@@ -32,6 +34,8 @@ class NFCNotifier extends ChangeNotifier {
   bool get hasStarted => _hasStarted;
   String? _vcid;
   String? get vcid => _vcid;
+  String? _rfid;
+  String? get rfid => _rfid;
 
   Future<void> startNFCOperation(
       {required NFCOperation nfcOperation, String dataType = ""}) async {
@@ -181,7 +185,7 @@ class NFCNotifier extends ChangeNotifier {
             List<int> data = List<int>.from(mifareData['data']);
             // Convert bytes to string, filtering out null bytes
             String rawText =
-                String.fromCharCodes(data.where((byte) => byte != 0));
+            String.fromCharCodes(data.where((byte) => byte != 0));
             if (rawText.trim().isNotEmpty) {
               decodedText = rawText.trim();
               // Normalize: remove a single leading 'en' (case-insensitive) if present
@@ -289,7 +293,17 @@ class NFCNotifier extends ChangeNotifier {
 
       Map<String, dynamic> data = jsonDecode(decryptedText);
       _vcid = data['vcid'];
+      // --- Extract UID from tag data as decimal string (like _uidDec in nfcUIDreader.dart) ---
+      final uidBytes = _findIdIn((tag as dynamic).data);
+      if (uidBytes != null) {
+        _rfid = _bytesToDecLast9(uidBytes);
+        print('DEBUG: UID extracted from tag data (decimal): \\_rfid=$_rfid');
+      } else {
+        _rfid = null;
+        print('DEBUG: UID not found in tag data');
+      }
       print('DEBUG: VCID extracted: $_vcid');
+      if (_rfid != null) print('DEBUG: RFID/UID extracted: $_rfid');
 
       String formattedData = '''
 Name: ${data["name"] ?? "N/A"}
@@ -306,7 +320,97 @@ Union Name: ${data["unionName"] ?? "N/A"}
       print('ERROR in _readFromTag: $e');
       _message = "Error reading card data: $e";
       _vcid = null;
+      _rfid = null;
       safeNotifyListeners();
+    }
+  }
+
+  // --- NFC UID extraction helpers (from nfcUIDreader.dart) ---
+  Uint8List? _findIdIn(dynamic node) {
+    if (node == null) return null;
+    if (node is Uint8List) {
+      if (node.length >= 4 && node.length <= 16) return node;
+    }
+    if (node is List<int>) {
+      final bytes = Uint8List.fromList(node);
+      if (bytes.length >= 4 && bytes.length <= 16) return bytes;
+    }
+    if (node is Map) {
+      for (final key in node.keys) {
+        final value = node[key];
+        final keyLower = key.toString().toLowerCase();
+        if (keyLower.contains('id') || keyLower.contains('identifier')) {
+          final found = _findIdIn(value);
+          if (found != null) return found;
+        }
+      }
+      for (final value in node.values) {
+        final found = _findIdIn(value);
+        if (found != null) return found;
+      }
+    }
+    if (node is List) {
+      for (final item in node) {
+        final found = _findIdIn(item);
+        if (found != null) return found;
+      }
+    }
+    // Try common dynamic properties safely
+    try {
+      final dyn = node as dynamic;
+      for (final prop in ['id', 'ID', 'identifier', 'tag', 'uid', 'UID']) {
+        try {
+          final val = _tryGetProp(dyn, prop);
+          if (val != null) {
+            final found = _findIdIn(val);
+            if (found != null) return found;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  String _bytesToDecLast9(Uint8List bytes) {
+    BigInt value = BigInt.zero;
+    for (int i = 0; i < bytes.length; i++) {
+      value |= (BigInt.from(bytes[i]) << (8 * i));
+    }
+    final dec = value.toString();
+    if (dec.length <= 10) return dec.padLeft(10, '0');
+    return dec.substring(dec.length - 10);
+  }
+
+  dynamic _tryGetProp(dynamic obj, String name) {
+    if (obj == null) return null;
+    try {
+      if (obj is Map) {
+        if (obj.containsKey(name)) return obj[name];
+        final lower = name.toLowerCase();
+        if (obj.containsKey(lower)) return obj[lower];
+        return null;
+      }
+    } catch (_) {}
+    try {
+      final dyn = obj as dynamic;
+      switch (name) {
+        case 'id':
+          return dyn.id;
+        case 'ID':
+          return dyn.ID;
+        case 'identifier':
+          return dyn.identifier;
+        case 'tag':
+          return dyn.tag;
+        case 'uid':
+          return dyn.uid;
+        case 'UID':
+          return dyn.UID;
+        default:
+          return null;
+      }
+    } catch (_) {
+      return null;
     }
   }
 }

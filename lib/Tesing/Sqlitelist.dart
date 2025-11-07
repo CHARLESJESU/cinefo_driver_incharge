@@ -566,6 +566,7 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     'VCID: \\${item['vcid'] ?? 'N/A'}',
                                                     style: TextStyle(
                                                         fontSize: 14)),
+
                                                 Text(
                                                     'Date: \\${_formatDate(item['marked_at'])}',
                                                     style: TextStyle(
@@ -705,6 +706,7 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                     item['vbpid']?.toString()),
                                                 _buildDetailRow('VCID',
                                                     item['vcid']?.toString()),
+
                                                 _buildDetailRow('VSUBID',
                                                     item['vsubid']?.toString()),
                                                 _buildDetailRow('VPOID',
@@ -748,6 +750,8 @@ class _SqlitelistState extends State<Sqlitelist> {
                                                         item['unionName']),
                                                     _buildDetailRow(
                                                         'VCID', item['vcid']),
+                                      _buildDetailRow(
+                                          'RFID', item['rfid']),
                                                     _buildDetailRow(
                                                         'CallsheetID',
                                                         item['callsheetid']

@@ -95,22 +95,25 @@ class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
                       WidgetsBinding.instance.addPostFrameCallback((_) async {
                         final currentMessage = provider.message;
                         final currentVcid = provider.vcid;
+                        // Capture RFID before clearing provider data
+                        final currentRfid = provider.rfid ?? '';
+
                         provider.clearNfcData();
                         showResultDialogi(
                           context,
                           currentMessage,
-                          () {
+                              () {
                             // Restart NFC listening after dialog closes
                             Future.delayed(Duration(milliseconds: 500), () {
                               if (mounted) {
                                 Provider.of<NFCNotifier>(context, listen: false)
                                     .startNFCOperation(
-                                        nfcOperation: NFCOperation.read);
+                                    nfcOperation: NFCOperation.read);
                               }
                             });
                           },
                           currentVcid.toString(),
-
+                          currentRfid,
                           '2', // Out-time attendance status
                         );
                         // await handleVCID(provider.vcid.toString());
