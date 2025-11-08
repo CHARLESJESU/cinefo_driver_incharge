@@ -6,6 +6,7 @@ import 'package:production/Screens/Trip/agenttripreport.dart';
 import 'package:production/Screens/callsheet/callsheetforincharge.dart';
 
 import 'package:production/Screens/Trip/inchargereport.dart';
+import 'package:production/Screens/report/reportforcallsheet.dart';
 
 import 'package:production/variables.dart';
 
@@ -97,7 +98,7 @@ class _RoutescreenforAgentState extends State<RoutescreenforAgent> {
         }
 
       case 2:
-        return Agenttripreport();
+        return Reportforcallsheet();
     // case 3:
     //   return TripScreen();
       default:
