@@ -24,6 +24,7 @@ void showResultDialogi(
   String message,
   VoidCallback onDismissed,
   String vcid,
+    String rfid,
   String attendanceStatus,
 ) {
   showDialog(
@@ -34,6 +35,7 @@ void showResultDialogi(
         message: message,
         onDismissed: onDismissed,
         vcid: vcid,
+        rfid: rfid,
         attendanceStatus: attendanceStatus,
       );
     },
@@ -44,6 +46,7 @@ class _CountdownDialog extends StatefulWidget {
   final String message;
   final VoidCallback onDismissed;
   final String vcid;
+  final String rfid;
   final String attendanceStatus;
 
   const _CountdownDialog({
@@ -51,6 +54,7 @@ class _CountdownDialog extends StatefulWidget {
     required this.message,
     required this.onDismissed,
     required this.vcid,
+    required this.rfid,
     required this.attendanceStatus,
   }) : super(key: key);
 
@@ -75,9 +79,11 @@ class _CountdownDialogState extends State<_CountdownDialog> {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
           designation TEXT,
+          rfid TEXT,
           code TEXT,
           unionName TEXT,
           vcid TEXT,
+          rfid TEXT,
           marked_at TEXT,
           latitude TEXT,
           longitude TEXT,
@@ -288,6 +294,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       Map<String, dynamic> intimeData = {
         'name': name,
         'designation': designation,
+        'rfid': widget.rfid,
         'code': code,
         'unionName': unionName,
         'vcid': vcid,
@@ -436,6 +443,7 @@ class IntimeSyncService {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
           designation TEXT,
+          rfid TEXT,
           code TEXT,
           unionName TEXT,
           vcid TEXT,
@@ -466,6 +474,7 @@ class IntimeSyncService {
             "callsheetid": row['callsheetid'],
             "projectid": projectId,
             "productionTypeId": productionTypeId,
+            "rfid": row['rfid'],
             "doubing": {},
             "latitude": row['latitude'],
             "longitude": row['longitude'],

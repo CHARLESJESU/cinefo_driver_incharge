@@ -21,6 +21,7 @@ class NFCNotifier extends ChangeNotifier {
   void clearNfcData() {
     _message = "";
     _vcid = null;
+    _rfid = null;
     safeNotifyListeners();
   }
 
@@ -32,6 +33,8 @@ class NFCNotifier extends ChangeNotifier {
   bool get hasStarted => _hasStarted;
   String? _vcid;
   String? get vcid => _vcid;
+  String? _rfid;
+  String? get rfid => _rfid;
 
   Future<void> startNFCOperation(
       {required NFCOperation nfcOperation, String dataType = ""}) async {
@@ -289,7 +292,10 @@ class NFCNotifier extends ChangeNotifier {
 
       Map<String, dynamic> data = jsonDecode(decryptedText);
       _vcid = data['vcid'];
+      // Try to read RFID/code from the decrypted payload. Common keys: 'code', 'rfid'
+      _rfid = (data['code'] ?? data['rfid'])?.toString();
       print('DEBUG: VCID extracted: $_vcid');
+      if (_rfid != null) print('DEBUG: RFID/code extracted: $_rfid');
 
       String formattedData = '''
 Name: ${data["name"] ?? "N/A"}
@@ -306,6 +312,7 @@ Union Name: ${data["unionName"] ?? "N/A"}
       print('ERROR in _readFromTag: $e');
       _message = "Error reading card data: $e";
       _vcid = null;
+      _rfid = null;
       safeNotifyListeners();
     }
   }

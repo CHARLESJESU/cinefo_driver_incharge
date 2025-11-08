@@ -1058,18 +1058,9 @@ class _LoginscreenState extends State<Loginscreen> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Color(0xFF164AE9)),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-       backgroundColor: Colors.white,
+      // Remove the extra AppBar so the background gradient can fill the
+      // entire screen. Make the scaffold itself transparent.
+
        body: Stack(
         children: [
           // Subtle background overlay
@@ -1115,7 +1106,9 @@ class _LoginscreenState extends State<Loginscreen> {
                       ),
                       SizedBox(height: 12),
                       Text(
-                        'Production Login',
+                        // 'Production Login',
+                       // 'Production Login',
+                        'Agent Login',
                         style: TextStyle(
                           fontSize: screenWidth * 0.055,
                           fontWeight: FontWeight.bold,
