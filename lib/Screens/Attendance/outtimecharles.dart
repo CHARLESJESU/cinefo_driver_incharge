@@ -95,6 +95,7 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
                       controller: _rfidController,
                       focusNode: _rfidFocusNode,
                       autofocus: true,
+                      readOnly: true,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
