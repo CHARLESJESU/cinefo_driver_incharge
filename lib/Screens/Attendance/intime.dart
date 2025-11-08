@@ -87,16 +87,19 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
                 // Numeric-only, auto-focused RFID text box
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: TextField(
-                    controller: _rfidController,
-                    focusNode: _rfidFocusNode,
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: 'RFID',
-                      hintText: 'Enter numeric RFID',
-                      border: OutlineInputBorder(),
+                  child: Opacity(
+                    opacity: 0.0,
+                    child: TextField(
+                      controller: _rfidController,
+                      focusNode: _rfidFocusNode,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'RFID',
+                        hintText: 'Enter numeric RFID',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                 ),

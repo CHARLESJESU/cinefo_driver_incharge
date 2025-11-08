@@ -164,7 +164,7 @@ class _AgenttripreportState extends State<Agenttripreport> {
             automaticallyImplyLeading: false,
 
             title: const Text(
-              "Agent Trip Reports",
+              "Agent Callsheet Reports",
               style:
               TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
@@ -224,7 +224,7 @@ class _AgenttripreportState extends State<Agenttripreport> {
                             ),
                             SizedBox(height: 16),
                             Text(
-                              "No Trips Available",
+                              "No Callsheet Report Available",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -244,7 +244,7 @@ class _AgenttripreportState extends State<Agenttripreport> {
                           Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
-                              "Trip Logs",
+                              "Callsheet Logs",
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,

@@ -119,7 +119,7 @@ class _ProfileInfoScreenState extends State<Profilesccreen> {
                 const Divider(color: Colors.white24, height: 30, thickness: 1),
                 buildProfileField('Name', loginData?["manager_name"] ?? ''),
                 buildProfileField('Mobile', loginData?["mobile_number"] ?? ''),
-                buildProfileField('Designation', 'Production Manager'),
+                buildProfileField('Designation', loginData?["subUnitName"] ?? ''),
                 buildProfileField(
                     'Production House', loginData?["production_house"] ?? ''),
               ],

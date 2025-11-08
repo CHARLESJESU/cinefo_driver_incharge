@@ -12,6 +12,8 @@ import 'package:path/path.dart' as path;
 import 'package:production/Screens/Login/loginscreen.dart';
 import 'dart:io';
 
+import '../../variables.dart';
+
 class MyHomescreen extends StatefulWidget {
   const MyHomescreen({super.key});
 
@@ -267,7 +269,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                     ),
                     child: Center(
                       child: CircleAvatar(
-                        backgroundImage: AssetImage('assets/tenkrow.png'),
+                        backgroundImage: AssetImage(cinefoagent),
                         radius: 40,
                         backgroundColor: Colors.white,
                       ),
@@ -362,37 +364,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                       _showLogoutDialog(context);
                     },
                   ),
-                  Divider(
-                    color: Colors.white.withOpacity(0.3),
-                    thickness: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
 
-                  ListTile(
-                    leading: Icon(
-                      Icons.calendar_month,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    title: Text(
-                      'NFC',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Close drawer first
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NfcHomePage(),
-                        ),
-                      );
-                    },
-                  ),
                   Divider(
                     color: Colors.white.withOpacity(0.3),
                     thickness: 1,
@@ -434,7 +406,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
             leading: Padding(
               padding: const EdgeInsets.only(left: 8.0),
               child: Image.asset(
-                'assets/cinefo-logo.png',
+                cinefologo,
                 width: 20,
                 height: 20,
                 fit: BoxFit.contain,

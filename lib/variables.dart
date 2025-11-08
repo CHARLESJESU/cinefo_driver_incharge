@@ -43,11 +43,11 @@ int secondLeadRole = 0;
 int leadRoleOtherLanguage = 0;
 int secondLeadRoleOtherLanguage = 0;
 final processRequest =
-    Uri.parse('https://devvgate.vframework.in/vgateapi/processRequest');
+    Uri.parse('https://vgate.vframework.in/vgateapi/processRequest');
 // final processRequest =
 //     Uri.parse('https://vgate.vframework.in/vgateapi/processRequest');
 final processSessionRequest =
-    Uri.parse('https://devvgate.vframework.in/vgateapi/processSessionRequest');
+    Uri.parse('https://vgate.vframework.in/vgateapi/processSessionRequest');
 // final processSessionRequest =
 //    Uri.parse('https://vgate.vframework.in/vgateapi/processSessionRequest');
 
@@ -102,3 +102,7 @@ String driverbaseurlfordev="drivermember.cinefo.club";
 String driverbaseurlforproduction="driversmember.cinefo.com";
 String agentbaseurlfordev="agentsmember.cinefo.club";
 String agentbaseurlforproduction="agentmembers.cinefo.com";
+String cinefoagent='assets/cine agent.png';
+String cinefodriver='assets/driver_union_logo.png';
+String cinefoproduction='assets/tenkrow.png';
+String cinefologo='assets/cinefo-logo.png';

@@ -72,7 +72,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
       print('DEBUG: Database opened successfully');
 
       // Drop the old table if it exists to ensure schema is correct
-      await db.execute('DROP TABLE IF EXISTS intime');
+      // await db.execute('DROP TABLE IF EXISTS intime');
 
       await db.execute('''
         CREATE TABLE IF NOT EXISTS intime (
@@ -189,15 +189,15 @@ class _CountdownDialogState extends State<_CountdownDialog> {
 
 // --- Background FIFO sync service ---
 
-  Future<bool> checkIfAttendanceAlreadyMarked(String vcid) async {
+  Future<bool> checkIfAttendanceAlreadyMarked(String rfid) async {
     try {
       final dbPath = await getDatabasesPath();
       final db = await openDatabase(path.join(dbPath, 'production_login.db'));
 
       final List<Map<String, dynamic>> existingRecords = await db.query(
         'intime',
-        where: 'vcid = ? AND callsheetid = ? AND attendance_status = ?',
-        whereArgs: [vcid, callsheetid, widget.attendanceStatus],
+        where: 'rfid = ? AND callsheetid = ? AND attendance_status = ?',
+        whereArgs: [rfid, callsheetid, widget.attendanceStatus],
       );
 
       // IMPORTANT: do NOT close the shared DB here for the same reason as above.
@@ -222,7 +222,7 @@ class _CountdownDialogState extends State<_CountdownDialog> {
     }
 
     // Check if attendance is already marked for this vcid and callsheet
-    bool alreadyMarked = await checkIfAttendanceAlreadyMarked(vcid);
+    bool alreadyMarked = await checkIfAttendanceAlreadyMarked(widget.rfid);
     if (alreadyMarked) {
       print('DEBUG: Attendance already exists for vcid: $vcid');
       setState(() {

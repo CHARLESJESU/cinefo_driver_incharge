@@ -251,98 +251,127 @@ class _LoginscreenState extends State<Loginscreen> {
       await _createLoginTable(db);
       print('✅ Login table verified/created');
 
-      // Use a transaction to ensure the database stays open
+      // Helpers
+      String safeString(dynamic v) => (v == null) ? '' : v.toString();
+      int safeInt(dynamic v) {
+        if (v == null) return 0;
+        if (v is int) return v;
+        if (v is double) return v.toInt();
+        final s = v.toString();
+        return int.tryParse(s) ?? 0;
+      }
+
+      // Flexible extractor: check loginresult (Map/List), responseData (Map/List) and root
+      dynamic _getFromResponse(String key) {
+        // 1) loginresult (preferred)
+        if (loginresult != null) {
+          if (loginresult is Map && (loginresult as Map).containsKey(key)) {
+            return (loginresult as Map)[key];
+          }
+          if (loginresult is List && (loginresult as List).isNotEmpty) {
+            final first = (loginresult as List)[0];
+            if (first is Map && first.containsKey(key)) return first[key];
+          }
+        }
+
+        // 2) loginresponsebody['responseData']
+        final rd = loginresponsebody?['responseData'];
+        if (rd != null) {
+          if (rd is Map && rd.containsKey(key)) return rd[key];
+          if (rd is List && rd.isNotEmpty) {
+            final first = rd[0];
+            if (first is Map && first.containsKey(key)) return first[key];
+          }
+        }
+
+        // 3) root-level in loginresponsebody
+        if (loginresponsebody is Map && (loginresponsebody as Map).containsKey(key)) {
+          return (loginresponsebody as Map)[key];
+        }
+
+        return null;
+      }
+
+      // Extract commonly-used fields robustly
+      final extractedSubUnitName = safeString(_getFromResponse('subUnitName') ?? _getFromResponse('subunitName'));
+      final extractedProfileImage = safeString(_getFromResponse('profileImage') ?? _getFromResponse('profile_image') ?? ProfileImage);
+
+      // Numeric fields handled safely
+      final extractedVmid = safeInt(_getFromResponse('vmid') ?? _getFromResponse('VMID'));
+      final extractedVuid = safeInt(_getFromResponse('vuid'));
+      final extractedVbpid = safeInt(_getFromResponse('vbpid'));
+      final extractedVcid = safeInt(_getFromResponse('vcid'));
+      final extractedVsubid = safeInt(_getFromResponse('vsubid'));
+      final extractedVpoid = safeInt(_getFromResponse('vpoid'));
+      final extractedMtypeId = safeInt(_getFromResponse('mtypeId'));
+      final extractedVmTypeId = safeInt(_getFromResponse('vmTypeId'));
+      final extractedVpidpo = safeInt(_getFromResponse('vpidpo'));
+      final extractedVpidbp = safeInt(_getFromResponse('vpidbp'));
+      final extractedUnitid = safeInt(_getFromResponse('unitid'));
+      final extractedSubunitid = safeInt(_getFromResponse('subunitid'));
+      // production_type could be string sometimes
+      final productionTypeVal = _getFromResponse('production_type_id') ?? _getFromResponse('productionTypeId');
+      final extractedProductionTypeId = safeInt(productionTypeVal);
+
+      // Use transaction to insert first-user only
       await db.transaction((txn) async {
         // For testing purposes, clear existing data first
         await txn.delete('login_data');
         print('🗑️ Cleared existing login data for fresh test');
 
-        // Check if table already contains any data
         final existingData = await txn.query('login_data');
         print('📊 Existing data count: ${existingData.length}');
-
         if (existingData.isNotEmpty) {
-          print(
-              '🚫 Login table already contains data. Skipping insert (First user only policy)');
-          print('📊 Existing records count: ${existingData.length}');
-          print(
-              '👤 First user: ${existingData.first['manager_name']} (${existingData.first['mobile_number']})');
-          return; // Exit without adding new data
+          print('🚫 Login table already contains data. Skipping insert');
+          return;
         }
 
-        // Table is empty, proceed with first user registration
-        print('✅ Login table is empty. Adding first user data...');
-        print('🔍 Current ProfileImage variable value: "$ProfileImage"');
-        print('🔍 ProfileImage type: ${ProfileImage.runtimeType}');
-        print('🔍 ProfileImage length: ${ProfileImage?.length}');
-
-        // Prepare login data for first user
         final loginData = {
-          'manager_name': loginresponsebody?['responseData']?['fname'] ?? '',
-          'profile_image': ProfileImage ?? '',
-          'registered_movie':
-              loginresponsebody?['responseData']?['projectName'] ?? '',
+          'manager_name': safeString(_getFromResponse('fname') ?? _getFromResponse('manager_name') ?? _getFromResponse('managerName')),
+          'profile_image': extractedProfileImage,
+          'registered_movie': safeString(_getFromResponse('projectName') ?? _getFromResponse('registered_movie')),
           'mobile_number': loginmobilenumber.text,
-          'subUnitName':
-              loginresponsebody?['responseData']?['subUnitName'] ?? '',
+          'subUnitName': extractedSubUnitName,
           'password': loginpassword.text,
-          'project_id': loginresponsebody?['responseData']?['projectId'] ?? '',
-          'production_type_id':
-              loginresponsebody?['responseData']?['productionTypeId'] ?? 0,
-          'production_house':
-              loginresponsebody?['responseData']?['productionHouse'] ?? '',
-          'vmid': loginresponsebody?['responseData']?['vmid'] ?? 0,
+          'project_id': safeString(_getFromResponse('projectId') ?? _getFromResponse('projectid')),
+          'production_type_id': extractedProductionTypeId,
+          'production_house': safeString(_getFromResponse('productionHouse') ?? _getFromResponse('production_house')),
+          'vmid': extractedVmid,
           'login_date': DateTime.now().toIso8601String(),
-          'vsid': loginresponsebody?['vsid']?.toString() ?? '',
-          'vpid': loginresponsebody?['vpid']?.toString() ?? '',
-          'vuid': loginresponsebody?['vuid'] ?? 0,
-          // 'companyName': loginresponsebody?['companyName']?.toString() ?? '',
-          // 'email': loginresponsebody?['email']?.toString() ?? '',
-          'vbpid': loginresponsebody?['vbpid'] ?? 0,
-          'vcid': loginresponsebody?['vcid'] ?? 0,
-          'vsubid': loginresponsebody?['vsubid'] ?? 0,
-          'vpoid': loginresponsebody?['vpoid'] ?? 0,
-          'mtypeId': loginresponsebody?['mtypeId'] ?? 0,
-          'unitName': loginresponsebody?['unitName']?.toString() ?? '',
-          'vmTypeId': loginresponsebody?['vmTypeId'] ?? 0,
-          'idcardurl': loginresponsebody?['idcardurl']?.toString() ?? '',
-          'vpidpo': loginresponsebody?['vpidpo'] ?? 0,
-          'vpidbp': loginresponsebody?['vpidbp'] ?? 0,
-          'unitid': loginresponsebody?['unitid'] ?? 0,
-          'subunitid': loginresponsebody?['subunitid'] ?? 0,
-          'platformlogo': loginresponsebody?['platformlogo']?.toString() ?? '',
-          // Mark whether this login is for an agent (unitid == 18)
-          'isAgentt': (loginresponsebody?['unitid'] == 18) ? 1 : 0,
-          'driver': 0, // Default value, will be updated based on navigation
+          'vsid': safeString(_getFromResponse('vsid') ?? loginresponsebody?['vsid']),
+          'vpid': safeString(_getFromResponse('vpid') ?? _getFromResponse('VPID')),
+          'vuid': extractedVuid,
+          'vbpid': extractedVbpid,
+          'vcid': extractedVcid,
+          'vsubid': extractedVsubid,
+          'vpoid': extractedVpoid,
+          'mtypeId': extractedMtypeId,
+          'unitName': safeString(_getFromResponse('unitName') ?? _getFromResponse('unitname')),
+          'vmTypeId': extractedVmTypeId,
+          'idcardurl': safeString(_getFromResponse('idcardurl')),
+          'vpidpo': extractedVpidpo,
+          'vpidbp': extractedVpidbp,
+          'unitid': extractedUnitid,
+          'subunitid': extractedSubunitid,
+          'platformlogo': safeString(_getFromResponse('platformlogo')),
+          'isAgentt': (extractedUnitid == 18) ? 1 : 0,
+          'driver': 0,
         };
 
-        print(
-            '📝 ProfileImage value being saved: "${loginData['profile_image']}"');
-        print('📝 Full login data being saved: $loginData');
         print('📝 Adding FIRST USER login data: $loginData');
-
-        // Insert first user login data within transaction
         final insertResult = await txn.insert(
           'login_data',
           loginData,
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
-
-        print(
-            '🎉 FIRST USER login data saved to SQLite successfully with ID: $insertResult');
+        print('🎉 FIRST USER login data saved to SQLite successfully with ID: $insertResult');
       });
 
-      // Verify the data was stored correctly outside transaction
       final savedData = await getActiveLoginData();
       print('🔍 Verification - Retrieved first user data: $savedData');
     } catch (e) {
       print('❌ Error saving login data: $e');
-      print('❌ Error type: ${e.runtimeType}');
-      print('❌ Stack trace: ${StackTrace.current}');
-
-      // Reset database connection on error
       if (e.toString().contains('database_closed')) {
-        print('🔄 Resetting database connection due to closed database');
         _database = null;
       }
     }
@@ -570,8 +599,8 @@ class _LoginscreenState extends State<Loginscreen> {
         body:
             jsonEncode(<String, String>{
               // "baseURL": driverbaseurlfordev  // production for driver
-             // "baseURL": agentbaseurlforproduction
-              "baseURL": agentbaseurlfordev
+             "baseURL": agentbaseurlforproduction
+             //  "baseURL": agentbaseurlfordev
               // "baseURL": driverbaseurlfordev
               // "baseURL": "agentmembers.cinefo.comddddddddddddddd" //production for agent
               // "baseURL": "agentsmembers.cinefo.club"
@@ -618,8 +647,8 @@ class _LoginscreenState extends State<Loginscreen> {
           'Content-Type': 'application/json; charset=UTF-8',
           'VPID': baseurlresult?['vpid']?.toString() ?? '',
           // "BASEURL": driverbaseurlfordev,  // production for driver
-          // "BASEURL": agentbaseurlforproduction,
-          "BASEURL": agentbaseurlfordev,
+          "BASEURL": agentbaseurlforproduction,
+          // "BASEURL": agentbaseurlfordev,
           // "BASEURL": driverbaseurlfordev,
           'VPTEMPLATEID': baseurlresult?['vptemplteID']?.toString() ?? '',
           'VMETID':
@@ -1099,7 +1128,7 @@ class _LoginscreenState extends State<Loginscreen> {
                         ),
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/tenkrow.png',
+                            cinefoagent,
                             fit: BoxFit.cover,
                           ),
                         ),
