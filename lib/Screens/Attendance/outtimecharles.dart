@@ -102,13 +102,13 @@ class _OuttimecharlesBodyState extends State<_OuttimecharlesBody> {
                         showResultDialogi(
                           context,
                           currentMessage,
-                          () {
+                              () {
                             // Restart NFC listening after dialog closes
                             Future.delayed(Duration(milliseconds: 500), () {
                               if (mounted) {
                                 Provider.of<NFCNotifier>(context, listen: false)
                                     .startNFCOperation(
-                                        nfcOperation: NFCOperation.read);
+                                    nfcOperation: NFCOperation.read);
                               }
                             });
                           },

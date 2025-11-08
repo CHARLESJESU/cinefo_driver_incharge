@@ -171,13 +171,13 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
                         showResultDialogi(
                           context,
                           currentMessage,
-                          () {
+                              () {
                             // Restart NFC listening after dialog closes
                             Future.delayed(Duration(milliseconds: 500), () {
                               if (mounted) {
                                 Provider.of<NFCNotifier>(context, listen: false)
                                     .startNFCOperation(
-                                        nfcOperation: NFCOperation.read);
+                                    nfcOperation: NFCOperation.read);
                               }
                             });
                           },

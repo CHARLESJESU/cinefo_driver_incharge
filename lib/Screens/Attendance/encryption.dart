@@ -23,7 +23,7 @@ String decryptAES(String encryptedText, String encryptionKey, IV iv) {
     if (hexOnly.length % 2 == 0 && hexOnly.isNotEmpty) {
       try {
         bytes = List<int>.generate(hexOnly.length ~/ 2,
-            (i) => int.parse(hexOnly.substring(i * 2, i * 2 + 2), radix: 16));
+                (i) => int.parse(hexOnly.substring(i * 2, i * 2 + 2), radix: 16));
       } catch (_) {
         throw ArgumentError('Base64 decode failed: ${e.toString()}');
       }
@@ -86,12 +86,12 @@ String decryptAES(String encryptedText, String encryptionKey, IV iv) {
     String hexPreview(List<int> b) {
       final take = 32;
       final preview =
-          b.take(take).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+      b.take(take).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
       final tail = b.length > take
           ? b
-              .skip(b.length - take)
-              .map((e) => e.toRadixString(16).padLeft(2, '0'))
-              .join()
+          .skip(b.length - take)
+          .map((e) => e.toRadixString(16).padLeft(2, '0'))
+          .join()
           : '';
       return 'len=${b.length} head=${preview}${tail.isNotEmpty ? ' tail=' + tail : ''}';
     }
