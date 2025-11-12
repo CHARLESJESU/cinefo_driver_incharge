@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -15,14 +16,24 @@ class Inchargereport extends StatefulWidget {
   State<Inchargereport> createState() => _InchargereportState();
 }
 
-class _InchargereportState extends State<Inchargereport> {
+class _InchargereportState extends State<Inchargereport> with RouteAware {
   List<Map<String, dynamic>> trips = [];
   bool isLoading = true; // State for loading indicator
 
   @override
   void initState() {
     super.initState();
+    // Initial load
     fetchVSIDFromLoginData().then((_) => fetchTrips());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ModalRoute? route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
   }
 
   Future<void> fetchVSIDFromLoginData() async {
@@ -175,13 +186,16 @@ class _InchargereportState extends State<Inchargereport> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  // Await the pushed route and refresh when it returns
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const Createtrip(),
                     ),
                   );
+                  // After returning from the create trip page, refresh data
+                  fetchVSIDFromLoginData().then((_) => fetchTrips());
                 },
               ),
             ],
@@ -477,5 +491,17 @@ class _InchargereportState extends State<Inchargereport> {
         return Colors.orange;
     }
   }
-}
 
+  @override
+  void dispose() {
+    // Unsubscribe from global route observer
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when returning to this route -> refresh data
+    fetchVSIDFromLoginData().then((_) => fetchTrips());
+  }
+}

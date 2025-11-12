@@ -104,7 +104,8 @@ class _MyHomescreenState extends State<MyHomescreen> {
         });
       }
       await db.close();
-    } catch (e) {
+    }
+    catch (e) {
       setState(() {
         _deviceId = 'N/A';
         _managerName = '';
@@ -269,7 +270,7 @@ class _MyHomescreenState extends State<MyHomescreen> {
                     ),
                     child: Center(
                       child: CircleAvatar(
-                        backgroundImage: AssetImage(cinefoagent),
+                        backgroundImage: AssetImage(cinefodriver),
                         radius: 40,
                         backgroundColor: Colors.white,
                       ),

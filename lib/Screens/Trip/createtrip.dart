@@ -11,6 +11,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/services.dart';
+
+import '../../datafetchfromsqlite.dart';
 
 class Createtrip extends StatefulWidget {
   const Createtrip({super.key});
@@ -554,6 +557,30 @@ class _CreatetripState extends State<Createtrip> {
       missingFields.add('Contact Person Number');
     }
 
+    // Ensure contact person number is exactly 10 digits
+    final String contactNo = contactPersonNoController.text.trim();
+    if (contactNo.isNotEmpty && contactNo.length != 10) {
+      missingFields.add('Contact Person Number \n must be 10 digits');
+    }
+
+    // If alternate number provided, ensure it is exactly 10 digits
+    final String altNo = alternateContactNoController.text.trim();
+    if (altNo.isNotEmpty && altNo.length != 10) {
+      missingFields.add('Alternate Contact Number \n must be 10 digits');
+    }
+
+    // New validation: mobile number should not start with 0-5
+    final RegExp invalidStart = RegExp(r'^[0-5]');
+    if (contactNo.isNotEmpty && invalidStart.hasMatch(contactNo)) {
+      missingFields.add('Contact Person Number \n give a valid mobile number');
+    }
+    if (altNo.isNotEmpty && invalidStart.hasMatch(altNo)) {
+      missingFields.add('Alternate Contact Number \n give a valid mobile number');
+    }
+
+    // New validation: contact and alternate must not be identical (if alternate provided)
+
+
     if (locationController.text.trim().isEmpty) {
       missingFields.add('Location');
     }
@@ -663,6 +690,7 @@ class _CreatetripState extends State<Createtrip> {
           }
         }
       }
+      print("🔍🔍🔍🔍🔍🔍🔍🔍$selectedPickupDate");
       final payload = {
         "vpid": loginData?["vpid"] ?? 0,
         "tripttypeid": tripType == "Pick Up" ? 1 : 2,
@@ -685,7 +713,7 @@ class _CreatetripState extends State<Createtrip> {
         "longtitude": selectedLongitude?.toString() ?? '',
         "location": locationController.text,
         "tripdate": selectedPickupDate != null
-            ? "${selectedPickupDate!.year}-${selectedPickupDate!.month.toString().padLeft(2, '0')}-${selectedPickupDate!.day.toString().padLeft(2, '0')}"
+            ? "${selectedPickupDate!.day.toString().padLeft(2, '0')}-${selectedPickupDate!.month.toString().padLeft(2, '0')}-${selectedPickupDate!.year}"
             : '',
         "triptime": selectedTime != null ? selectedTime!.format(context) : '',
         "contactpersonname": contactPersonNameController.text,
@@ -693,13 +721,17 @@ class _CreatetripState extends State<Createtrip> {
         "contactpersonalternatemobile": alternateContactNoController.text,
         "locationurl": locationUrl ?? '',
       };
+
+      await fetchloginDataFromSqlite();
+      print("🛰️🛰️🛰️🛰️🛰️🛰️$vsid");
+      print(payload);
       final createtripResponse = await http.post(
         processSessionRequest,
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'VMETID':
               'k+UnxgpyJFtbhHBcNgiwMctkSDb0/LZImpdqp2QlixSbONNAMlSbS41JItIprv1EpDBixc5WWktQx/FCwvkVHEHmIzviCUWcyuE8EhZaCGPH6CbKH2EPiny8/q8ZvlF7jlJNrbHwx8o4SqqxEwNlErUhBPyFXN8BgtKbCkGI7XeuYy8Twet/t+X4kdzjestXB9yks2Y5TzJu8P3ZPY/jYvzF+QbgAQQwzCZ7RtOWy93EV9p5pZFOH5NAzHdbXU8mrV6rxFZ5wfOPynlV6Q63pAWN+0faVYtK/4kEEW4kzmkpewVsRTlUYeTLjsiIwZdSXGdGaNmK87qa480tqz29Uw==',
-          'VSID': loginData!['vsid']?.toString() ?? '',
+          'VSID': vsid ?? '',
         },
         body: jsonEncode(payload),
       );
@@ -724,6 +756,7 @@ class _CreatetripState extends State<Createtrip> {
 
         // Reset form after successful creation
         _resetForm();
+        Navigator.pop(context);
       } else {
         print(
             '⚠️ Trip creation failed with status: ${createtripResponse.statusCode}');
@@ -1293,7 +1326,21 @@ class _CreatetripState extends State<Createtrip> {
                                   const SizedBox(height: 8),
                                   TextFormField(
                                     controller: contactPersonNoController,
-                                    keyboardType: TextInputType.phone,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                    maxLength: 10,
+                                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                                    buildCounter: (
+                                      BuildContext context, {
+                                      required int currentLength,
+                                      required bool isFocused,
+                                      required int? maxLength,
+                                    }) {
+                                      return null; // hide counter
+                                    },
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: Colors.white,
@@ -1315,7 +1362,21 @@ class _CreatetripState extends State<Createtrip> {
                                   const SizedBox(height: 8),
                                   TextFormField(
                                     controller: alternateContactNoController,
-                                    keyboardType: TextInputType.phone,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                    maxLength: 10,
+                                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                                    buildCounter: (
+                                      BuildContext context, {
+                                      required int currentLength,
+                                      required bool isFocused,
+                                      required int? maxLength,
+                                    }) {
+                                      return null; // hide counter
+                                    },
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: Colors.white,

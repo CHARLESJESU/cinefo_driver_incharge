@@ -280,9 +280,9 @@ final payload={"vmid": vmid, "statusid": 1};
     try {
       if (dateStr.length == 8) {
         // Format: DDMMYYYY
-        String day = dateStr.substring(0, 2);
-        String month = dateStr.substring(2, 4);
-        String year = dateStr.substring(4, 8);
+        String day = dateStr.substring(6, 8);
+        String month = dateStr.substring(4, 6);
+        String year = dateStr.substring(0, 4);
         DateTime date = DateTime.parse('$year-$month-$day');
         return DateFormat('dd/MM/yyyy').format(date);
       }
@@ -740,7 +740,7 @@ final payload={"vmid": vmid, "statusid": 1};
                     ),
                     child: Center(
                       child: CircleAvatar(
-                        backgroundImage: AssetImage('assets/tenkrow.png'),
+                        backgroundImage: AssetImage(cinefodriver),
                         radius: 40,
                         backgroundColor: Colors.white,
                       ),
@@ -833,38 +833,7 @@ final payload={"vmid": vmid, "statusid": 1};
                       _showLogoutDialog(context);
                     },
                   ),
-                  Divider(
-                    color: Colors.white.withOpacity(0.3),
-                    thickness: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
 
-                  // Logout
-                  ListTile(
-                    leading: Icon(
-                      Icons.output,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    title: Text(
-                      'NFC CARD UID',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Close drawer first
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NfcHomePage(),
-                        ),
-                      );
-                    },
-                  ),
                   Divider(
                     color: Colors.white.withOpacity(0.3),
                     thickness: 1,

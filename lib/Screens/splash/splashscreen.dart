@@ -238,7 +238,8 @@ class _SplashScreenState extends State<SplashScreen> {
                       child: ClipOval(
                         child: Image.asset(
                           // 'assets/tenkrow.png',
-                          cinefoagent,
+                          // cinefoagent,
+                          cinefodriver,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -248,7 +249,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
                     // App Title
                     Text(
-                      'Agent App',
+                      // 'Agent App',
+                     'Driver App',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,

@@ -24,11 +24,17 @@ class _IntimeScreenBody extends StatefulWidget {
 
 class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
   String debugMessage = '';
-  // Controller and focus node for the RFID text box
+  // Controller and focus nodes
   final TextEditingController _rfidController = TextEditingController();
   final FocusNode _rfidFocusNode = FocusNode();
+  final FocusNode _keyboardFocusNode = FocusNode(); // for RawKeyboardListener
+
   // Track last RFID handled to avoid duplicate dialog launches
   String _lastHandledRfid = '';
+  // Buffer built from hardware keyboard events
+  String _kbBuffer = '';
+  // Threshold to auto-submit (adjust if needed)
+  static const int _autoSubmitLength = 10;
 
   void updateDebugMessage(String msg) {
     if (mounted) {
@@ -42,25 +48,105 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<NFCNotifier>(context, listen: false)
-          .startNFCOperation(nfcOperation: NFCOperation.read);
-      // Request focus for the RFID text box after the first frame so it
-      // becomes active automatically when this screen appears.
-      FocusScope.of(context).requestFocus(_rfidFocusNode);
+      // Start NFC listening (optional) — kept for compatibility with existing flows
+      try {
+        Provider.of<NFCNotifier>(context, listen: false)
+            .startNFCOperation(nfcOperation: NFCOperation.read);
+      } catch (_) {}
+
+      // Give focus to the RawKeyboardListener so hardware keyboard events are captured
+      FocusScope.of(context).requestFocus(_keyboardFocusNode);
+      // Ensure soft keyboard is hidden
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
+    });
+  }
+
+  // Handle hardware key events using the newer KeyEvent API
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      // Try to use the character if available (works for HID scanners/keyboards)
+      final String? char = event.character;
+
+      if (char != null && char.isNotEmpty) {
+        final digits = char.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digits.isNotEmpty) {
+          _kbBuffer += digits;
+          _updateControllerFromBuffer();
+        }
+      } else {
+        // No printable char available — handle special keys
+        final key = event.logicalKey;
+        if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+          _submitKbBuffer();
+        } else if (key == LogicalKeyboardKey.backspace) {
+          if (_kbBuffer.isNotEmpty) {
+            _kbBuffer = _kbBuffer.substring(0, _kbBuffer.length - 1);
+            _updateControllerFromBuffer();
+          }
+        }
+      }
+
+      // Auto-submit when buffer reaches threshold
+      if (_kbBuffer.length >= _autoSubmitLength && _lastHandledRfid != _kbBuffer) {
+        _submitKbBuffer();
+      }
+    }
+  }
+
+  void _updateControllerFromBuffer() {
+    // Update the read-only TextField visually
+    _rfidController.text = _kbBuffer;
+    _rfidController.selection =
+        TextSelection.fromPosition(TextPosition(offset: _rfidController.text.length));
+    // Keep focus on the RawKeyboardListener and keep soft keyboard hidden
+    if (!_keyboardFocusNode.hasFocus) FocusScope.of(context).requestFocus(_keyboardFocusNode);
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  }
+
+  void _submitKbBuffer() {
+    if (_kbBuffer.isEmpty) return;
+    _lastHandledRfid = _kbBuffer;
+
+    // Capture a copy and then clear buffer after showing dialog
+    final String submitted = _kbBuffer;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Use provider to get vcid if available
+      final provider = Provider.of<NFCNotifier>(context, listen: false);
+      final currentVcid = provider.vcid?.toString() ?? '';
+
+      showResultDialogi(
+        context,
+        'Hardware input detected',
+        () {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (!mounted) return;
+            // Clear buffer and controller, restart NFC if you want, and refocus the keyboard listener
+            _kbBuffer = '';
+            _lastHandledRfid = '';
+            _rfidController.clear();
+            try {
+              Provider.of<NFCNotifier>(context, listen: false)
+                  .startNFCOperation(nfcOperation: NFCOperation.read);
+            } catch (_) {}
+            FocusScope.of(context).requestFocus(_keyboardFocusNode);
+            SystemChannels.textInput.invokeMethod('TextInput.hide');
+          });
+        },
+        currentVcid,
+        submitted,
+        '1',
+      );
     });
   }
 
   @override
   void dispose() {
-    // Stop NFC when leaving the screen
-    try {
-      Provider.of<NFCNotifier>(context, listen: false).dispose();
-    } catch (e) {
-      print('Error disposing NFC: $e');
-    }
-    // Dispose controller and focus node
-    _rfidController.dispose();
+    // Do NOT call Provider.dispose() here — provider is managed by ChangeNotifierProvider
+    // Just dispose local nodes/controllers
+    _keyboardFocusNode.dispose();
     _rfidFocusNode.dispose();
+    _rfidController.dispose();
     super.dispose();
   }
 
@@ -77,129 +163,86 @@ class _IntimeScreenBodyState extends State<_IntimeScreenBody> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Builder(
-        builder: (BuildContext context) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(debugMessage),
-                // Numeric-only, auto-focused RFID text box
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Opacity(
-                    opacity: 0.0,
-                    child: TextField(
+      body: KeyboardListener(
+        focusNode: _keyboardFocusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: Builder(
+          builder: (BuildContext context) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(debugMessage),
+
+                  // Display the buffer in a read-only TextField so soft keyboard won't appear
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Opacity(opacity: 0.0,child: TextField(
                       controller: _rfidController,
                       focusNode: _rfidFocusNode,
-                      autofocus: true,
-                      readOnly: true,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      readOnly: true, // prevents soft keyboard from opening
+                      showCursor: true,
+                      enableInteractiveSelection: false,
                       decoration: InputDecoration(
                         labelText: 'RFID',
-                        hintText: 'Enter numeric RFID',
+                        hintText: 'Waiting for hardware input...',
                         border: OutlineInputBorder(),
                       ),
-                    ),
+                    ),)
+
                   ),
-                ),
-                Image.asset('assets/markattendance.png'),
-                const SizedBox(height: 20),
-                Consumer<NFCNotifier>(
-                  builder: (context, provider, _) {
-                    // If provider has an rfid value, auto-fill the text box.
-                    final rawRfid = provider.rfid;
-                    if (rawRfid != null && rawRfid.isNotEmpty) {
-                      // Sanitize to digits only to respect the numeric-only TextField.
-                      final sanitizedRfid = rawRfid.replaceAll(RegExp(r'[^0-9]'), '');
-                      if (_rfidController.text != sanitizedRfid) {
-                        _rfidController.text = sanitizedRfid;
-                        _rfidController.selection = TextSelection.fromPosition(
-                          TextPosition(offset: _rfidController.text.length),
+
+                  Image.asset('assets/markattendance.png'),
+                  const SizedBox(height: 20),
+
+                  Consumer<NFCNotifier>(
+                    builder: (context, provider, _) {
+                      // Still keep NFC provider messages working as before
+                      if (provider.isProcessing) {
+                        return const Text(
+                          'Please hold the card near',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
                         );
-                        // Keep focus on the RFID field after autofill so keyboard stays active
-                        FocusScope.of(context).requestFocus(_rfidFocusNode);
                       }
-                    }
 
-                    // If user typed/scanned RFID manually into the text field
-                    // and its length reaches >= 10, open the result dialog once.
-                    final manualRfid = _rfidController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                    if (manualRfid.length >= 10 && _lastHandledRfid != manualRfid) {
-                      _lastHandledRfid = manualRfid;
-                      // Call the dialog with a blank vcid and the RFID from controller
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        final dialogMessage = debugMessage.isNotEmpty ? debugMessage : 'Manual RFID entry detected';
-                        final currentVcid = provider.vcid;
-                        showResultDialogi(
-                          context,
-                          dialogMessage,
-                          () {
-                            // On dismiss: clear controller, reset last handled and restart NFC
-                            Future.delayed(const Duration(milliseconds: 300), () {
-                              if (mounted) {
-                                _rfidController.clear();
-                                _lastHandledRfid = '';
-                                Provider.of<NFCNotifier>(context, listen: false)
-                                    .startNFCOperation(nfcOperation: NFCOperation.read);
-                                // After clearing and restarting NFC, put focus back on the RFID field
-                                FocusScope.of(context).requestFocus(_rfidFocusNode);
-                              }
-                            });
-                          },
-                          currentVcid.toString(),
-                          _rfidController.text, // pass the actual text string
-                          '1', // In-time attendance status
-                        );
-                      });
-                    }
+                      if (provider.message.isNotEmpty && provider.vcid != null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) async {
+                          final currentMessage = provider.message;
+                          final currentVcid = provider.vcid;
+                          final currentRfid = provider.rfid ?? '';
+                          provider.clearNfcData();
+                          showResultDialogi(
+                            context,
+                            currentMessage,
+                            () {
+                              // Restart NFC listening after dialog closes
+                              Future.delayed(Duration(milliseconds: 500), () {
+                                if (mounted) {
+                                  Provider.of<NFCNotifier>(context, listen: false)
+                                      .startNFCOperation(
+                                          nfcOperation: NFCOperation.read);
+                                }
+                              });
+                            },
+                            currentVcid.toString(),
+                            currentRfid,
+                            '1',
+                          );
+                        });
+                      }
 
-                    if (provider.isProcessing) {
-                      return const Text(
-                        'Please hold the card near',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    }
-
-                    if (provider.message.isNotEmpty && provider.vcid != null) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) async {
-                        final currentMessage = provider.message;
-                        final currentVcid = provider.vcid;
-                        // Capture RFID before clearing provider data (provider.clearNfcData() will null it)
-                        final currentRfid = provider.rfid ?? '';
-                        provider.clearNfcData();
-                        showResultDialogi(
-                          context,
-                          currentMessage,
-                              () {
-                            // Restart NFC listening after dialog closes
-                            Future.delayed(Duration(milliseconds: 500), () {
-                              if (mounted) {
-                                Provider.of<NFCNotifier>(context, listen: false)
-                                    .startNFCOperation(
-                                    nfcOperation: NFCOperation.read);
-                              }
-                            });
-                          },
-                          currentVcid.toString(),
-                          currentRfid,
-                          '1', // In-time attendance status
-                        );
-                        // await handleVCID(provider.vcid.toString());
-                      });
-                    }
-
-                    return const SizedBox();
-                  },
-                ),
-              ],
-            ),
-          );
-        },
+                      return const SizedBox();
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
