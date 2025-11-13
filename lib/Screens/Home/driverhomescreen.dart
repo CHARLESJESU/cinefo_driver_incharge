@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:production/Profile/profilesccreen.dart';
 import 'package:production/Profile/changepassword.dart';
-import 'package:production/Screens/Home/nfcUIDreader.dart';
-import 'package:production/Screens/Home/otpscreen.dart';
 import 'package:production/Tesing/Sqlitelist.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:production/Screens/Login/loginscreen.dart';
 import 'package:intl/intl.dart';
 import 'package:production/ApiCalls/apicall.dart';
-
+import 'package:production/Screens/Home/otpscreen.dart';
 import 'package:production/variables.dart';
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -38,9 +36,7 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
   void initState() {
     super.initState();
     _initializeData();
-    // Also kick off a refresh to ensure UI is up-to-date after init.
-    // We don't await here because initState cannot be async.
-    _refreshPage();
+    // No RouteAware auto-refresh here (removed per request).
   }
 
   Future<void> _initializeData() async {
@@ -310,15 +306,22 @@ final payload={"vmid": vmid, "statusid": 1};
 
     // Map tripstatusid to a display label and color. If tripstatusid
     // is not present, fall back to tripType string and existing color logic.
+
+
     final dynamic statusRaw = trip['tripstatusid'];
-    final int? statusId = statusRaw is int
-        ? statusRaw
-        : (statusRaw is String ? int.tryParse(statusRaw) : null);
+    final dynamic Triptype = trip['tripttypeid'];
+
+    print(statusRaw);
+    final int statusId = statusRaw;
+    final int Triptypeid = Triptype;
+
     final String statusLabel = statusId == 1
         ? 'Assigned'
         : statusId == 2
             ? 'Arrived'
-            : 'N/A';
+            : statusId == 3
+        ? 'Trip Started'
+        : 'N/A';
     final Color statusColor = statusId == 1
         ? Colors.orange
         : statusId == 2
@@ -327,9 +330,14 @@ final payload={"vmid": vmid, "statusid": 1};
 
     // Decide button action label based on statusId. Compute this here
     // (outside of the widget tree) to avoid syntax errors.
-    final String actionLabel = (statusId == 1)
+    // If statusId == 3, the trip has already started and the button
+    // should be disabled. Provide an appropriate label for that state.
+    final bool isDisabled = statusId == 3;
+    print(Triptypeid);
+    print("mass");
+    final String actionLabel = (Triptypeid==2)? 'End Trip':(statusId == 1)
         ? 'Arrived'
-        : (statusId == 2 ? 'Start' : 'Arrived');
+        : (statusId == 2 ? 'Start' :(isDisabled ? 'Started' : 'Arrived'));
 
     return Container(
       margin: EdgeInsets.only(bottom: 12),
@@ -358,14 +366,47 @@ final payload={"vmid": vmid, "statusid": 1};
                   // Header
                   Row(
                     children: [
+                      // Show Trip ID and the trip type together so the trip type
+                      // appears near the left side of the status label.
                       Expanded(
-                        child: Text(
-                          'Trip ID: ${trip['tripid'] ?? 'N/A'}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Color(0xFF2B5682),
-                          ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'Trip ID: ${trip['tripid'] ?? 'N/A'}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Color(0xFF2B5682),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            // Trip type label (e.g. "Pick Up") placed before the status
+                            // container so it appears to the left of it.
+                            if ((trip['tripType'] ?? '').toString().isNotEmpty)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getTripTypeColor(
+                                          trip['tripType']?.toString() ?? '')
+                                      .withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  trip['tripType']?.toString() ?? '',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _getTripTypeColor(
+                                        trip['tripType']?.toString() ?? ''),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       Container(
@@ -447,31 +488,45 @@ final payload={"vmid": vmid, "statusid": 1};
                     width: double.infinity,
                     height: 40,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // If the button label is 'Start', navigate to OTP screen
-                        if (actionLabel.toLowerCase() == 'start') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => Otpscreen(tripid: tripId)),
-                          );
-                        } else {
-                          // Otherwise perform the existing arrived/update action
-                          _handleArrivedButton(trip);
-                        }
-                      },
+                      // Disable the button when isDisabled is true by setting
+                      // onPressed to null. This also applies the disabled
+                      // visual state automatically.
+                      onPressed: isDisabled
+                          ? null
+                          : () {
+                              // If the button label is 'Start', navigate to OTP screen
+                              if (actionLabel.toLowerCase() == 'start') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          Otpscreen(tripid: tripId)),
+                                );
+                              } else {
+                                // Otherwise perform the existing arrived/update action
+                                _handleArrivedButton(trip);
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF2B5682),
-                        foregroundColor: Colors.white,
+                        // When disabled, use a greyed out background to
+                        // reinforce the disabled state. Note: Flutter will
+                        // override colors appropriately when onPressed is null
+                        // but we provide a fallback color for consistency.
+                        backgroundColor:
+                            isDisabled ? Colors.grey.shade400 : Color(0xFF2B5682),
+                        foregroundColor:
+                            isDisabled ? Colors.grey.shade200 : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        elevation: 2,
+                        elevation: isDisabled ? 0 : 2,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle, size: 18),
+                          Icon(
+                              isDisabled ? Icons.block : Icons.check_circle,
+                              size: 18),
                           SizedBox(width: 8),
                           Text(
                             actionLabel,
@@ -592,6 +647,7 @@ final payload={"vmid": vmid, "statusid": 1};
   Color _getTripTypeColor(String tripType) {
     switch (tripType.toLowerCase()) {
       case 'pick up':
+      case 'pick-up':
       case 'pickup':
         return Colors.green;
       case 'drop':

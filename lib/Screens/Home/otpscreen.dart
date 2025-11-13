@@ -108,7 +108,9 @@ class _OtpscreenState extends State<Otpscreen> {
           duration: Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
         ),
+
       );
+      Navigator.pop(context);
     });
   }
 
