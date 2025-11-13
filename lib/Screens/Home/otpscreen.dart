@@ -110,7 +110,7 @@ class _OtpscreenState extends State<Otpscreen> {
         ),
 
       );
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     });
   }
 

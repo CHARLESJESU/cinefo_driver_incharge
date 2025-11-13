@@ -18,10 +18,10 @@ class DriverMyhomescreen extends StatefulWidget {
   const DriverMyhomescreen({super.key});
 
   @override
-  State<DriverMyhomescreen> createState() => _DriverMyHomescreenState();
+  State<DriverMyhomescreen> createState() => _DriverMyhomescreenState();
 }
 
-class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
+class _DriverMyhomescreenState extends State<DriverMyhomescreen> with RouteAware {
   String? _deviceId;
   String? _managerName;
   String? _mobileNumber;
@@ -37,6 +37,30 @@ class _DriverMyHomescreenState extends State<DriverMyhomescreen> {
     super.initState();
     _initializeData();
     // No RouteAware auto-refresh here (removed per request).
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to the global RouteObserver so we get notified when
+    // this route becomes visible again (for example after popping
+    // back from the Otpscreen). This enables auto-refresh on return.
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    // Unsubscribe from the RouteObserver to avoid memory leaks.
+    try { routeObserver.unsubscribe(this); } catch (_) {}
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when a new route has been popped and this route shows up again.
+    // Refresh the page to reflect any changes made on the child route
+    // (e.g. OTP success updated trip status).
+    _refreshPage();
   }
 
   Future<void> _initializeData() async {
